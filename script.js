@@ -224,3 +224,4 @@ updateClock();
 setInterval(updateClock, 1000);
 renderNotes();
 checkLocalModel();
+setInterval(checkLocalModel, 15000);
