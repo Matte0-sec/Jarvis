@@ -7,6 +7,7 @@
     <title>JARVIS | Persönlicher Assistent</title>
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
+    <script type="module" src="vision.js"></script>
 </head>
 <body>
     <main class="app-shell">
@@ -34,6 +35,24 @@
             <div class="clock" aria-label="Aktuelle Uhrzeit">
                 <time id="time">--:--</time>
                 <span id="date">--</span>
+            </div>
+        </section>
+
+        <section class="vision-panel" aria-labelledby="vision-title">
+            <div class="vision-heading">
+                <div>
+                    <p class="eyebrow">Visuelles Erkennungssystem</p>
+                    <h2 id="vision-title">Lokale Gesichtserkennung</h2>
+                </div>
+                <div class="vision-controls">
+                    <span class="vision-state" id="visionState" aria-live="polite">Bereit</span>
+                    <button class="camera-button" id="cameraButton" type="button">Kamera starten</button>
+                </div>
+            </div>
+            <div class="camera-view" id="cameraView">
+                <video id="cameraFeed" playsinline muted></video>
+                <canvas id="faceOverlay" aria-hidden="true"></canvas>
+                <span class="camera-placeholder" id="cameraPlaceholder">Kamera offline</span>
             </div>
         </section>
 
