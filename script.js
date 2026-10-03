@@ -5,6 +5,9 @@ const assistantStatus = document.querySelector("#assistantStatus");
 const notesList = document.querySelector("#notesList");
 const voiceState = document.querySelector("#voiceState");
 const micButton = document.querySelector("#micButton");
+const modelState = document.querySelector("#modelState");
+const ollamaUrl = "http://127.0.0.1:11434/api/chat";
+const ollamaModel = "gemma3:1b";
 
 let notes = JSON.parse(localStorage.getItem("jarvis-notes") || "[]");
 let alternateTheme = false;
@@ -73,7 +76,29 @@ function speak(text) {
   speechSynthesis.speak(utterance);
 }
 
-function respond(input) {
+async function askLocalModel(input) {
+  const response = await fetch(ollamaUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: ollamaModel,
+      stream: false,
+      messages: [
+        {
+          role: "system",
+          content: "Du bist JARVIS, ein hilfreicher persönlicher Assistent. Antworte immer auf natürlichem Deutsch, freundlich, präzise und eher kurz. Erfinde keine ausgeführten Aktionen oder Fakten.",
+        },
+        { role: "user", content: input },
+      ],
+    }),
+  });
+
+  if (!response.ok) throw new Error("Lokales Modell antwortet nicht.");
+  const result = await response.json();
+  return result.message?.content?.trim() || "Dazu habe ich keine Antwort erhalten.";
+}
+
+async function respond(input) {
   const command = input.trim();
   const normalized = command.toLocaleLowerCase("de-DE");
   let response;
@@ -86,14 +111,20 @@ function respond(input) {
     response = `Heute ist ${new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`;
   } else if (normalized.startsWith("notiz")) {
     const note = command.replace(/^notiz\s*:?\s*/i, "").trim();
-    if (!note) return "Sehr gern. Was darf ich für Sie notieren?";
-    saveNote(note);
-    response = "Vermerkt. Die Notiz wurde gespeichert.";
+    if (!note) {
+      response = "Sehr gern. Was darf ich für Sie notieren?";
+    } else {
+      saveNote(note);
+      response = "Vermerkt. Die Notiz wurde gespeichert.";
+    }
   } else if (normalized.startsWith("suche") || normalized.startsWith("search")) {
     const query = command.replace(/^(suche( nach)?|search)\s*/i, "").trim();
-    if (!query) return "Selbstverständlich. Wonach soll ich für Sie suchen?";
-    window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, "_blank", "noopener");
-    response = `Selbstverständlich. Ich suche nach ${query}.`;
+    if (!query) {
+      response = "Selbstverständlich. Wonach soll ich für Sie suchen?";
+    } else {
+      window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, "_blank", "noopener");
+      response = `Selbstverständlich. Ich suche nach ${query}.`;
+    }
   } else if (normalized.includes("thema") || normalized.includes("ansicht")) {
     alternateTheme = !alternateTheme;
     document.documentElement.style.setProperty("--accent", alternateTheme ? "#f1bf75" : "#52e0c4");
@@ -102,13 +133,30 @@ function respond(input) {
   } else if (normalized.includes("hilfe") || normalized.includes("was kannst")) {
     response = "Ich kann Ihnen die Uhrzeit und das Datum nennen, Notizen sichern, eine Websuche öffnen und die Darstellung anpassen. Geben Sie einfach eine Anweisung ein oder verwenden Sie das Mikrofon.";
   } else {
-    response = "Diese Anweisung kann ich im lokalen Modus noch nicht ausführen. Dafür benötige ich eine zusätzliche Fähigkeit oder eine KI-Anbindung.";
+    assistantStatus.textContent = "Ich denke nach ...";
+    try {
+      response = await askLocalModel(command);
+    } catch {
+      modelState.textContent = "nicht erreichbar";
+      response = "Die lokale KI ist im Moment nicht erreichbar. Bitte starten Sie Ollama und versuchen Sie es erneut.";
+    }
   }
 
   assistantStatus.textContent = response;
   addMessage(response);
   speak(response);
   return response;
+}
+
+async function checkLocalModel() {
+  try {
+    const response = await fetch("http://127.0.0.1:11434/api/tags");
+    const result = await response.json();
+    const isInstalled = result.models?.some((model) => model.name === ollamaModel);
+    modelState.textContent = isInstalled ? "lokal bereit" : "Modell fehlt";
+  } catch {
+    modelState.textContent = "nicht erreichbar";
+  }
 }
 
 chatForm.addEventListener("submit", (event) => {
@@ -175,3 +223,4 @@ if ("speechSynthesis" in window) {
 updateClock();
 setInterval(updateClock, 1000);
 renderNotes();
+checkLocalModel();
