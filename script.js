@@ -133,7 +133,7 @@ async function respond(input) {
   } else if (normalized.includes("hilfe") || normalized.includes("was kannst")) {
     response = "Ich kann Ihnen die Uhrzeit und das Datum nennen, Notizen sichern, eine Websuche öffnen und die Darstellung anpassen. Geben Sie einfach eine Anweisung ein oder verwenden Sie das Mikrofon.";
   } else {
-    assistantStatus.textContent = "Ich denke nach ...";
+    assistantStatus.textContent = "Die lokale KI verarbeitet Ihre Anfrage. Das kann einen Moment dauern ...";
     try {
       response = await askLocalModel(command);
     } catch {
