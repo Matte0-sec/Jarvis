@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#071315">
+    <title>JARVIS | Persönlicher Assistent</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+</head>
+<body>
+    <main class="app-shell">
+        <header class="topbar">
+            <div class="identity">
+                <span class="identity-mark" aria-hidden="true">J</span>
+                <div>
+                    <p class="eyebrow">Persönliches Assistenzsystem</p>
+                    <h1>JARVIS</h1>
+                </div>
+            </div>
+            <div class="system-state" aria-label="Systemstatus: betriebsbereit">
+                <span class="status-light"></span>
+                <span>Betriebsbereit</span>
+            </div>
+        </header>
+
+        <section class="command-deck" aria-labelledby="greeting-title">
+            <div class="radar" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="greeting">
+                <p class="eyebrow">System bereit</p>
+                <h2 id="greeting-title">Guten Tag.</h2>
+                <p id="assistantStatus">Wie darf ich Sie unterstützen?</p>
+            </div>
+            <div class="clock" aria-label="Aktuelle Uhrzeit">
+                <time id="time">--:--</time>
+                <span id="date">--</span>
+            </div>
+        </section>
+
+        <section class="workspace" aria-label="Assistentenarbeitsbereich">
+            <aside class="side-panel">
+                <div class="panel-heading">
+                    <p class="eyebrow">Schnellaktionen</p>
+                </div>
+                <div class="quick-actions">
+                    <button class="quick-action" type="button" data-command="Wie spät ist es?">Zeit</button>
+                    <button class="quick-action" type="button" data-command="Notiz: ">Notiz</button>
+                    <button class="quick-action" type="button" data-command="Suche nach ">Suchen</button>
+                    <button class="quick-action" type="button" data-command="Wechsle das Thema">Ansicht</button>
+                </div>
+                <div class="panel-heading notes-heading">
+                    <p class="eyebrow">Letzte Notizen</p>
+                    <button class="icon-button" id="clearNotes" type="button" title="Notizen löschen" aria-label="Notizen löschen">&#215;</button>
+                </div>
+                <ul class="notes" id="notesList" aria-live="polite">
+                    <li class="empty-state">Noch keine Notizen gespeichert.</li>
+                </ul>
+            </aside>
+
+            <section class="conversation" aria-label="Unterhaltung mit Jarvis">
+                <div class="chat-log" id="chatLog" aria-live="polite">
+                    <article class="message assistant-message">
+                        <span class="message-label">JARVIS</span>
+                        <p>Alle Systeme sind betriebsbereit. Sie können schreiben oder das Mikrofon verwenden.</p>
+                    </article>
+                </div>
+                <form class="composer" id="chatForm">
+                    <label class="sr-only" for="prompt">Nachricht an Jarvis</label>
+                    <input id="prompt" type="text" autocomplete="off" placeholder="Ihre Anweisung eingeben ..." />
+                    <button class="mic-button" id="micButton" type="button" title="Spracheingabe starten" aria-label="Spracheingabe starten">
+                        <span aria-hidden="true">&#9679;</span>
+                    </button>
+                    <button class="send-button" type="submit">Senden <span aria-hidden="true">&#8599;</span></button>
+                </form>
+            </section>
+        </section>
+
+        <footer>
+            <span>Lokaler Assistentenmodus</span>
+            <span>Sprache: <strong id="voiceState">bereit</strong></span>
+        </footer>
+    </main>
+</body>
+</html>
