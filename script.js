@@ -28,6 +28,7 @@ function stopWakeListener() {
   wakeStream = undefined;
   wakeAudioContext?.close();
   wakeAudioContext = undefined;
+  clapTimes = [];
 }
 
 function activateJarvis() {
@@ -65,12 +66,11 @@ function listenForClaps(analyser, samples) {
 async function startWakeListener() {
   if (!navigator.mediaDevices?.getUserMedia) {
     wakeStatus.textContent = "Mikrofon wird von diesem Browser nicht unterstützt";
-    wakeRetry.hidden = false;
+    wakeRetry.disabled = false;
     return;
   }
 
-  wakeRetry.hidden = true;
-  wakeScreen.classList.remove("needs-permission");
+  wakeRetry.disabled = true;
   wakeStatus.textContent = "Mikrofon wird aktiviert ...";
   try {
     wakeStream = await navigator.mediaDevices.getUserMedia({
@@ -85,16 +85,15 @@ async function startWakeListener() {
     await wakeAudioContext.resume();
     if (wakeAudioContext.state !== "running") {
       wakeStatus.textContent = "Einmal klicken, um das Mikrofon zu aktivieren";
-      wakeScreen.classList.add("needs-permission");
-      wakeRetry.hidden = false;
+      wakeRetry.disabled = false;
       return;
     }
     wakeStatus.textContent = "Warte auf zwei Klatscher";
+    wakeScreen.classList.add("listening");
     listenForClaps(analyser, new Uint8Array(analyser.fftSize));
   } catch {
     wakeStatus.textContent = "Mikrofonberechtigung erforderlich";
-    wakeScreen.classList.add("needs-permission");
-    wakeRetry.hidden = false;
+    wakeRetry.disabled = false;
   }
 }
 
@@ -309,21 +308,8 @@ setInterval(updateClock, 1000);
 renderNotes();
 checkLocalModel();
 setInterval(checkLocalModel, 15000);
-startWakeListener();
 wakeRetry.addEventListener("click", (event) => {
   event.stopPropagation();
   startWakeListener();
-});
-wakeScreen.addEventListener("pointerdown", async () => {
-  if (wakeAudioContext?.state === "suspended") {
-    await wakeAudioContext.resume();
-    if (wakeAudioContext.state === "running") {
-      wakeRetry.hidden = true;
-      wakeScreen.classList.remove("needs-permission");
-      wakeStatus.textContent = "Warte auf zwei Klatscher";
-      return;
-    }
-  }
-  if (!wakeStream) startWakeListener();
 });
 window.addEventListener("beforeunload", stopWakeListener);

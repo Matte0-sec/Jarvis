@@ -25,8 +25,8 @@ button, input { font: inherit; }
 button { cursor: pointer; }
 
 .wake-screen { position: fixed; z-index: 20; inset: 0; display: grid; place-content: center; gap: 16px; color: #a0f1de; background: #000; font-family: Consolas, monospace; text-align: center; transition: opacity .45s ease, visibility .45s ease; }
-.wake-screen p { visibility: hidden; margin: 0; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; }
-.wake-screen.needs-permission p { visibility: visible; }
+.wake-screen p { margin: 0; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; }
+.wake-screen.listening p, .wake-screen.listening button { display: none; }
 .wake-screen button { justify-self: center; padding: 10px 14px; border: 1px solid var(--accent); border-radius: 2px; color: #061112; background: var(--accent); }
 .wake-screen.awake { visibility: hidden; opacity: 0; pointer-events: none; }
 
