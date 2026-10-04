@@ -6,6 +6,9 @@ const notesList = document.querySelector("#notesList");
 const voiceState = document.querySelector("#voiceState");
 const micButton = document.querySelector("#micButton");
 const modelState = document.querySelector("#modelState");
+const wakeScreen = document.querySelector("#wakeScreen");
+const wakeStatus = document.querySelector("#wakeStatus");
+const wakeRetry = document.querySelector("#wakeRetry");
 const ollamaUrl = "http://127.0.0.1:11434/api/chat";
 const ollamaModel = "gemma3:1b";
 
@@ -13,6 +16,75 @@ let notes = JSON.parse(localStorage.getItem("jarvis-notes") || "[]");
 let alternateTheme = false;
 let germanVoice;
 let hasGreeted = false;
+let wakeStream;
+let wakeAudioContext;
+let wakeAnimationFrame;
+let clapTimes = [];
+let lastClapTime = 0;
+
+function stopWakeListener() {
+  cancelAnimationFrame(wakeAnimationFrame);
+  wakeStream?.getTracks().forEach((track) => track.stop());
+  wakeStream = undefined;
+  wakeAudioContext?.close();
+  wakeAudioContext = undefined;
+}
+
+function activateJarvis() {
+  stopWakeListener();
+  wakeScreen.classList.add("awake");
+  assistantStatus.textContent = "Aktiviert. Wie darf ich Sie unterstützen?";
+  speak("Jarvis aktiviert. Wie darf ich Sie unterstützen?");
+  promptInput.focus();
+}
+
+function listenForClaps(analyser, samples) {
+  if (!wakeStream) return;
+  analyser.getByteTimeDomainData(samples);
+  let total = 0;
+  for (const sample of samples) total += Math.abs(sample - 128);
+  const volume = total / samples.length;
+  const now = performance.now();
+
+  if (volume > 19 && now - lastClapTime > 180) {
+    lastClapTime = now;
+    clapTimes = [...clapTimes, now].filter((time) => now - time < 950);
+    if (clapTimes.length >= 2) {
+      activateJarvis();
+      return;
+    }
+  }
+  wakeAnimationFrame = requestAnimationFrame(() => listenForClaps(analyser, samples));
+}
+
+async function startWakeListener() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    wakeStatus.textContent = "Mikrofon wird von diesem Browser nicht unterstützt";
+    wakeRetry.hidden = false;
+    return;
+  }
+
+  wakeRetry.hidden = true;
+  wakeScreen.classList.remove("needs-permission");
+  wakeStatus.textContent = "Mikrofon wird aktiviert ...";
+  try {
+    wakeStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false },
+      video: false,
+    });
+    wakeAudioContext = new AudioContext();
+    const source = wakeAudioContext.createMediaStreamSource(wakeStream);
+    const analyser = wakeAudioContext.createAnalyser();
+    analyser.fftSize = 1024;
+    source.connect(analyser);
+    wakeStatus.textContent = "Warte auf zwei Klatscher";
+    listenForClaps(analyser, new Uint8Array(analyser.fftSize));
+  } catch {
+    wakeStatus.textContent = "Mikrofonberechtigung erforderlich";
+    wakeScreen.classList.add("needs-permission");
+    wakeRetry.hidden = false;
+  }
+}
 
 function updateVoice() {
   const voices = speechSynthesis.getVoices();
@@ -225,3 +297,6 @@ setInterval(updateClock, 1000);
 renderNotes();
 checkLocalModel();
 setInterval(checkLocalModel, 15000);
+startWakeListener();
+wakeRetry.addEventListener("click", startWakeListener);
+window.addEventListener("beforeunload", stopWakeListener);
