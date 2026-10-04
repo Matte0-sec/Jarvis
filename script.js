@@ -183,14 +183,31 @@ async function askLocalModel(input) {
   return result.message?.content?.trim() || "Dazu habe ich keine Antwort erhalten.";
 }
 
-async function runDesktopAction(action) {
+async function runDesktopAction(action, target) {
   const response = await fetch(`${desktopUrl}/desktop/action`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action, target }),
   });
   if (!response.ok) throw new Error("Desktop-Dienst antwortet nicht.");
   return response.json();
+}
+
+function getWebsiteTarget(command) {
+  const sites = {
+    youtube: "https://www.youtube.com",
+    google: "https://www.google.com",
+    github: "https://github.com",
+    spotify: "https://open.spotify.com",
+    netflix: "https://www.netflix.com",
+  };
+  const knownSite = Object.keys(sites).find((site) => command.includes(site));
+  if (knownSite) return sites[knownSite];
+
+    const target = command.replace(/^(öffne|starte)\s+(die|den|das)?\s*/i, "").trim();
+  const domainPattern = /^(https?:\/\/)?(www\.)?[a-z0-9-]+\.[a-z]{2,}(\/[^\s]*)?$/i;
+  if (!domainPattern.test(target)) return null;
+  return target.startsWith("http") ? target : `https://${target}`;
 }
 
 async function respond(input) {
@@ -219,6 +236,15 @@ async function respond(input) {
     } else {
       window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, "_blank", "noopener");
       response = `Selbstverständlich. Ich suche nach ${query}.`;
+    }
+  } else if (/^(öffne|starte)\b/.test(normalized) && getWebsiteTarget(command)) {
+    const website = getWebsiteTarget(command);
+    try {
+      await runDesktopAction("website", website);
+      response = "Die Webseite wurde im Standardbrowser geöffnet.";
+    } catch {
+      desktopState.textContent = "nicht verbunden";
+      response = "Der Desktop-Modus ist nicht gestartet. Führen Sie zuerst desktop-server.ps1 auf diesem PC aus.";
     }
   } else if (/(öffne|starte)/.test(normalized) && /(rechner|taschenrechner|calculator)/.test(normalized)) {
     try {

@@ -11,13 +11,17 @@ $listener.Start()
 Write-Host "Jarvis Desktop-Modus bereit auf http://127.0.0.1:3210"
 
 function Send-JsonResponse($response, $statusCode, $payload) {
-  $json = $payload | ConvertTo-Json -Compress
-  $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-  $response.StatusCode = $statusCode
-  $response.ContentType = "application/json; charset=utf-8"
-  $response.ContentLength64 = $bytes.Length
-  $response.OutputStream.Write($bytes, 0, $bytes.Length)
-  $response.Close()
+  try {
+    $json = $payload | ConvertTo-Json -Compress
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+    $response.StatusCode = $statusCode
+    $response.ContentType = "application/json; charset=utf-8"
+    $response.ContentLength64 = $bytes.Length
+    $response.OutputStream.Write($bytes, 0, $bytes.Length)
+    $response.Close()
+  } catch {
+    try { $response.Abort() } catch {}
+  }
 }
 
 try {
@@ -61,6 +65,16 @@ try {
       "editor" { Start-Process "notepad.exe" }
       "files" { Start-Process "explorer.exe" $env:USERPROFILE }
       "settings" { Start-Process "ms-settings:" }
+      "website" {
+        try {
+          $website = [Uri]$body.target
+          if ($website.Scheme -notin @("http", "https")) { throw "Nicht erlaubtes Protokoll" }
+          Start-Process $website.AbsoluteUri
+        } catch {
+          Send-JsonResponse $response 400 @{ error = "Ungültige Webadresse" }
+          continue
+        }
+      }
       default {
         Send-JsonResponse $response 400 @{ error = "Aktion nicht erlaubt" }
         continue
