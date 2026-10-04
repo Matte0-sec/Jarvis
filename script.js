@@ -41,14 +41,19 @@ function activateJarvis() {
 function listenForClaps(analyser, samples) {
   if (!wakeStream) return;
   analyser.getByteTimeDomainData(samples);
-  let total = 0;
-  for (const sample of samples) total += Math.abs(sample - 128);
-  const volume = total / samples.length;
+  let squaredTotal = 0;
+  let peak = 0;
+  for (const sample of samples) {
+    const offset = Math.abs(sample - 128);
+    squaredTotal += offset ** 2;
+    peak = Math.max(peak, offset);
+  }
+  const volume = Math.sqrt(squaredTotal / samples.length);
   const now = performance.now();
 
-  if (volume > 19 && now - lastClapTime > 180) {
+  if ((volume > 8 || peak > 55) && now - lastClapTime > 130) {
     lastClapTime = now;
-    clapTimes = [...clapTimes, now].filter((time) => now - time < 950);
+    clapTimes = [...clapTimes, now].filter((time) => now - time < 1200);
     if (clapTimes.length >= 2) {
       activateJarvis();
       return;
@@ -77,6 +82,13 @@ async function startWakeListener() {
     const analyser = wakeAudioContext.createAnalyser();
     analyser.fftSize = 1024;
     source.connect(analyser);
+    await wakeAudioContext.resume();
+    if (wakeAudioContext.state !== "running") {
+      wakeStatus.textContent = "Einmal klicken, um das Mikrofon zu aktivieren";
+      wakeScreen.classList.add("needs-permission");
+      wakeRetry.hidden = false;
+      return;
+    }
     wakeStatus.textContent = "Warte auf zwei Klatscher";
     listenForClaps(analyser, new Uint8Array(analyser.fftSize));
   } catch {
@@ -298,5 +310,20 @@ renderNotes();
 checkLocalModel();
 setInterval(checkLocalModel, 15000);
 startWakeListener();
-wakeRetry.addEventListener("click", startWakeListener);
+wakeRetry.addEventListener("click", (event) => {
+  event.stopPropagation();
+  startWakeListener();
+});
+wakeScreen.addEventListener("pointerdown", async () => {
+  if (wakeAudioContext?.state === "suspended") {
+    await wakeAudioContext.resume();
+    if (wakeAudioContext.state === "running") {
+      wakeRetry.hidden = true;
+      wakeScreen.classList.remove("needs-permission");
+      wakeStatus.textContent = "Warte auf zwei Klatscher";
+      return;
+    }
+  }
+  if (!wakeStream) startWakeListener();
+});
 window.addEventListener("beforeunload", stopWakeListener);
