@@ -6,11 +6,13 @@ const notesList = document.querySelector("#notesList");
 const voiceState = document.querySelector("#voiceState");
 const micButton = document.querySelector("#micButton");
 const modelState = document.querySelector("#modelState");
+const desktopState = document.querySelector("#desktopState");
 const wakeScreen = document.querySelector("#wakeScreen");
 const wakeStatus = document.querySelector("#wakeStatus");
 const wakeRetry = document.querySelector("#wakeRetry");
 const ollamaUrl = "http://127.0.0.1:11434/api/chat";
 const ollamaModel = "gemma3:1b";
+const desktopUrl = "http://127.0.0.1:3210";
 
 let notes = JSON.parse(localStorage.getItem("jarvis-notes") || "[]");
 let alternateTheme = false;
@@ -181,6 +183,16 @@ async function askLocalModel(input) {
   return result.message?.content?.trim() || "Dazu habe ich keine Antwort erhalten.";
 }
 
+async function runDesktopAction(action) {
+  const response = await fetch(`${desktopUrl}/desktop/action`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action }),
+  });
+  if (!response.ok) throw new Error("Desktop-Dienst antwortet nicht.");
+  return response.json();
+}
+
 async function respond(input) {
   const command = input.trim();
   const normalized = command.toLocaleLowerCase("de-DE");
@@ -207,6 +219,38 @@ async function respond(input) {
     } else {
       window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, "_blank", "noopener");
       response = `Selbstverständlich. Ich suche nach ${query}.`;
+    }
+  } else if (/(öffne|starte)/.test(normalized) && /(rechner|taschenrechner|calculator)/.test(normalized)) {
+    try {
+      await runDesktopAction("calculator");
+      response = "Der Rechner wurde geöffnet.";
+    } catch {
+      desktopState.textContent = "nicht verbunden";
+      response = "Der Desktop-Modus ist nicht gestartet. Führen Sie zuerst desktop-server.ps1 auf diesem PC aus.";
+    }
+  } else if (/(öffne|starte)/.test(normalized) && /(editor|notepad|texteditor)/.test(normalized)) {
+    try {
+      await runDesktopAction("editor");
+      response = "Der Texteditor wurde geöffnet.";
+    } catch {
+      desktopState.textContent = "nicht verbunden";
+      response = "Der Desktop-Modus ist nicht gestartet. Führen Sie zuerst desktop-server.ps1 auf diesem PC aus.";
+    }
+  } else if (/(öffne|zeige)/.test(normalized) && /(dateien|explorer|ordner)/.test(normalized)) {
+    try {
+      await runDesktopAction("files");
+      response = "Ihr Benutzerordner wurde geöffnet.";
+    } catch {
+      desktopState.textContent = "nicht verbunden";
+      response = "Der Desktop-Modus ist nicht gestartet. Führen Sie zuerst desktop-server.ps1 auf diesem PC aus.";
+    }
+  } else if (/(öffne|starte)/.test(normalized) && /(einstellungen|settings)/.test(normalized)) {
+    try {
+      await runDesktopAction("settings");
+      response = "Die Windows-Einstellungen wurden geöffnet.";
+    } catch {
+      desktopState.textContent = "nicht verbunden";
+      response = "Der Desktop-Modus ist nicht gestartet. Führen Sie zuerst desktop-server.ps1 auf diesem PC aus.";
     }
   } else if (normalized.includes("thema") || normalized.includes("ansicht")) {
     alternateTheme = !alternateTheme;
@@ -239,6 +283,15 @@ async function checkLocalModel() {
     modelState.textContent = isInstalled ? "lokal bereit" : "Modell fehlt";
   } catch {
     modelState.textContent = "nicht erreichbar";
+  }
+}
+
+async function checkDesktopService() {
+  try {
+    const response = await fetch(`${desktopUrl}/desktop/status`);
+    desktopState.textContent = response.ok ? "lokal bereit" : "nicht verbunden";
+  } catch {
+    desktopState.textContent = "nicht verbunden";
   }
 }
 
@@ -308,6 +361,8 @@ setInterval(updateClock, 1000);
 renderNotes();
 checkLocalModel();
 setInterval(checkLocalModel, 15000);
+checkDesktopService();
+setInterval(checkDesktopService, 15000);
 wakeRetry.addEventListener("click", (event) => {
   event.stopPropagation();
   startWakeListener();
