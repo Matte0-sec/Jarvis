@@ -15,6 +15,7 @@ const ollamaModel = "gemma3:1b";
 const desktopUrl = "http://127.0.0.1:3210";
 
 let notes = JSON.parse(localStorage.getItem("jarvis-notes") || "[]");
+let appointments = JSON.parse(localStorage.getItem("jarvis-appointments") || "[]");
 let alternateTheme = false;
 let germanVoice;
 let hasGreeted = false;
@@ -150,6 +151,40 @@ function saveNote(note) {
   renderNotes();
 }
 
+function formatAppointmentDate(date) {
+  return date.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })
+    + ` um ${date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} Uhr`;
+}
+
+function parseAppointment(command) {
+  const match = command.match(/\b(heute|morgen)\b.*?\bum\s+(\d{1,2})(?:[:.](\d{2}))?\s*uhr\b/i);
+  if (!match) return null;
+
+  const date = new Date();
+  if (match[1].toLocaleLowerCase("de-DE") === "morgen") date.setDate(date.getDate() + 1);
+  date.setHours(Number(match[2]), Number(match[3] || 0), 0, 0);
+  if (Number.isNaN(date.getTime()) || match[2] > 23 || Number(match[3] || 0) > 59) return null;
+
+  const description = command
+    .replace(/^(ich\s+)?habe\s+/i, "")
+    .replace(/\b(heute|morgen)\b.*?\bum\s+\d{1,2}(?:[:.]\d{2})?\s*uhr\s*/i, "")
+    .replace(/^einen?\s+termin\s*/i, "")
+    .trim() || "Termin";
+  return { date: date.toISOString(), description };
+}
+
+function saveAppointment(appointment) {
+  appointments.push(appointment);
+  appointments.sort((first, second) => new Date(first.date) - new Date(second.date));
+  localStorage.setItem("jarvis-appointments", JSON.stringify(appointments));
+  saveNote(`Termin: ${appointment.description} - ${formatAppointmentDate(new Date(appointment.date))}`);
+}
+
+function getUpcomingAppointments() {
+  const now = new Date();
+  return appointments.filter((appointment) => new Date(appointment.date) >= now);
+}
+
 function speak(text) {
   if (!("speechSynthesis" in window) || !germanVoice) return;
   speechSynthesis.cancel();
@@ -217,6 +252,21 @@ async function respond(input) {
 
   if (/^(hallo|hi|guten)/.test(normalized)) {
     response = "Guten Tag. Es freut mich, Ihnen behilflich sein zu dürfen. Alle Systeme sind betriebsbereit.";
+  } else if (/(habe ich|welche|meine|zeige).*termine|termine.*(habe ich|welche|meine|zeigen)/.test(normalized)) {
+    const upcomingAppointments = getUpcomingAppointments();
+    if (!upcomingAppointments.length) {
+      response = "Sie haben keine kommenden Termine gespeichert.";
+    } else {
+      response = `Sie haben ${upcomingAppointments.length} kommenden ${upcomingAppointments.length === 1 ? "Termin" : "Termine"}: ${upcomingAppointments.map((appointment) => `${appointment.description}, ${formatAppointmentDate(new Date(appointment.date))}`).join(". ")}.`;
+    }
+  } else if (normalized.includes("termin")) {
+    const appointment = parseAppointment(command);
+    if (!appointment) {
+      response = "Nennen Sie bitte einen Termin mit Tag und Uhrzeit, zum Beispiel: Ich habe morgen um 13 Uhr einen Termin beim Arzt.";
+    } else {
+      saveAppointment(appointment);
+      response = `Vermerkt. ${appointment.description} ist für ${formatAppointmentDate(new Date(appointment.date))} gespeichert.`;
+    }
   } else if (normalized.includes("uhr") || normalized.includes("zeit") || normalized.includes("wie spät")) {
     response = `Gewiss. Es ist ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} Uhr.`;
   } else if (normalized.includes("datum") || normalized.includes("welcher tag")) {
@@ -345,7 +395,9 @@ document.querySelectorAll(".quick-action").forEach((button) => {
 
 document.querySelector("#clearNotes").addEventListener("click", () => {
   notes = [];
+  appointments = [];
   localStorage.removeItem("jarvis-notes");
+  localStorage.removeItem("jarvis-appointments");
   renderNotes();
   assistantStatus.textContent = "Notizen wurden gelöscht.";
 });
