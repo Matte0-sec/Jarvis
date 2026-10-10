@@ -10,6 +10,9 @@ const desktopState = document.querySelector("#desktopState");
 const wakeScreen = document.querySelector("#wakeScreen");
 const wakeStatus = document.querySelector("#wakeStatus");
 const wakeRetry = document.querySelector("#wakeRetry");
+const orbMode = document.querySelector("#orbMode");
+const jarvisOrb = document.querySelector("#jarvisOrb");
+const orbStatus = document.querySelector("#orbStatus");
 const ollamaUrl = "http://127.0.0.1:11434/api/chat";
 const ollamaModel = "gemma3:1b";
 const desktopUrl = "http://127.0.0.1:3210";
@@ -23,6 +26,7 @@ let wakeAudioContext;
 let wakeAnimationFrame;
 let clapTimes = [];
 let lastClapTime = 0;
+let interfaceMode = "voice";
 
 function stopWakeListener() {
   cancelAnimationFrame(wakeAnimationFrame);
@@ -36,9 +40,21 @@ function stopWakeListener() {
 function activateJarvis() {
   stopWakeListener();
   wakeScreen.classList.add("awake");
-  assistantStatus.textContent = "Aktiviert. Wie darf ich Sie unterstützen?";
-  speak("Jarvis aktiviert. Wie darf ich Sie unterstützen?");
-  promptInput.focus();
+  setInterfaceMode("voice");
+  assistantStatus.textContent = "Sprachmodus bereit.";
+}
+
+function setInterfaceMode(mode) {
+  interfaceMode = mode;
+  const isVoiceMode = mode === "voice";
+  orbMode.hidden = !isVoiceMode;
+  document.querySelector(".app-shell").hidden = isVoiceMode;
+  if (isVoiceMode) {
+    orbStatus.textContent = "Sprachmodus bereit";
+  } else {
+    orbMode.classList.remove("listening", "speaking");
+    promptInput.focus();
+  }
 }
 
 function listenForClaps(analyser, samples) {
@@ -188,6 +204,16 @@ function speak(text) {
   utterance.voice = germanVoice;
   utterance.rate = 0.9;
   utterance.pitch = 0.96;
+  utterance.addEventListener("start", () => {
+    if (interfaceMode === "voice") {
+      orbMode.classList.add("speaking");
+      orbStatus.textContent = "Jarvis spricht";
+    }
+  });
+  utterance.addEventListener("end", () => {
+    orbMode.classList.remove("speaking");
+    if (interfaceMode === "voice") orbStatus.textContent = "Sprachmodus bereit";
+  });
   speechSynthesis.speak(utterance);
 }
 
@@ -247,6 +273,10 @@ async function respond(input) {
 
   if (/^(hallo|hi|guten)/.test(normalized)) {
     response = "Guten Tag. Es freut mich, Ihnen behilflich sein zu dürfen. Alle Systeme sind betriebsbereit.";
+  } else if (normalized.includes("modus wechseln") || normalized.includes("wechsel den modus")) {
+    const nextMode = interfaceMode === "voice" ? "text" : "voice";
+    setInterfaceMode(nextMode);
+    response = nextMode === "text" ? "Textmodus aktiviert." : "Sprachmodus aktiviert.";
   } else if (/(habe ich|welche|meine|zeige).*termine|termine.*(habe ich|welche|meine|zeigen)/.test(normalized)) {
     const upcomingAppointments = getUpcomingAppointments();
     if (!upcomingAppointments.length) {
@@ -406,10 +436,16 @@ if (SpeechRecognition) {
     micButton.classList.add("listening");
     voiceState.textContent = "hört zu";
     assistantStatus.textContent = "Ich höre zu ...";
+    if (interfaceMode === "voice") {
+      orbMode.classList.add("listening");
+      orbStatus.textContent = "Jarvis hört zu";
+    }
   });
   recognition.addEventListener("end", () => {
     micButton.classList.remove("listening");
     voiceState.textContent = "bereit";
+    orbMode.classList.remove("listening");
+    if (interfaceMode === "voice" && !orbMode.classList.contains("speaking")) orbStatus.textContent = "Sprachmodus bereit";
   });
   recognition.addEventListener("result", (event) => {
     const input = event.results[0][0].transcript;
@@ -417,8 +453,10 @@ if (SpeechRecognition) {
     respond(input);
   });
   micButton.addEventListener("click", () => recognition.start());
+  jarvisOrb.addEventListener("click", () => recognition.start());
 } else {
   micButton.disabled = true;
+  jarvisOrb.disabled = true;
   micButton.title = "Spracheingabe wird von diesem Browser nicht unterstützt";
 }
 

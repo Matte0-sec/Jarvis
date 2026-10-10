@@ -14,6 +14,18 @@
         <p id="wakeStatus">Klatschmodus bereit</p>
         <button id="wakeRetry" type="button">Klatschmodus starten</button>
     </section>
+    <section class="orb-mode" id="orbMode" aria-label="Jarvis Sprachmodus" hidden>
+        <div class="orb-readout" id="orbStatus">Sprachmodus bereit</div>
+        <button class="jarvis-orb" id="jarvisOrb" type="button" aria-label="Jarvis zuhören lassen">
+            <span class="orb-shell"></span>
+            <span class="orb-grid"></span>
+            <span class="orb-ring orb-ring-one"></span>
+            <span class="orb-ring orb-ring-two"></span>
+            <span class="orb-core"></span>
+            <span class="orb-sparks"></span>
+        </button>
+        <p class="orb-hint">Kugel berühren, um mit Jarvis zu sprechen</p>
+    </section>
     <main class="app-shell">
         <header class="topbar">
             <div class="identity">
@@ -42,7 +54,7 @@
             </div>
         </section>
 
-        <section class="vision-panel" aria-labelledby="vision-title">
+        <section class="vision-panel" aria-labelledby="vision-title" hidden>
             <div class="vision-heading">
                 <div>
                     <p class="eyebrow">Visuelles Erkennungssystem</p>
