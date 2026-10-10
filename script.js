@@ -18,7 +18,6 @@ let notes = JSON.parse(localStorage.getItem("jarvis-notes") || "[]");
 let appointments = JSON.parse(localStorage.getItem("jarvis-appointments") || "[]");
 let alternateTheme = false;
 let germanVoice;
-let hasGreeted = false;
 let wakeStream;
 let wakeAudioContext;
 let wakeAnimationFrame;
@@ -106,10 +105,6 @@ function updateVoice() {
   germanVoice = voices.find((voice) => preferredNames.some((name) => voice.name.includes(name)))
     || voices.find((voice) => voice.lang.toLowerCase().startsWith("de"));
   voiceState.textContent = germanVoice ? "Deutsch bereit" : "deutsches Sprachpaket fehlt";
-  if (germanVoice && !hasGreeted) {
-    hasGreeted = true;
-    speak("Guten Tag. Alle Systeme sind betriebsbereit.");
-  }
 }
 
 function updateClock() {
