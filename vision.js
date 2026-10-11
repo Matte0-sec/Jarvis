@@ -36,14 +36,24 @@ async function getDetector() {
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
   );
-  detector = await ObjectDetector.createFromOptions(vision, {
+  const options = {
     baseOptions: {
       modelAssetPath: "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float32/1/efficientdet_lite0.tflite",
-      delegate: "GPU",
     },
     runningMode: "VIDEO",
-    scoreThreshold: 0.55,
-  });
+    scoreThreshold: 0.3,
+  };
+  try {
+    detector = await ObjectDetector.createFromOptions(vision, {
+      ...options,
+      baseOptions: { ...options.baseOptions, delegate: "GPU" },
+    });
+  } catch {
+    detector = await ObjectDetector.createFromOptions(vision, {
+      ...options,
+      baseOptions: { ...options.baseOptions, delegate: "CPU" },
+    });
+  }
   return detector;
 }
 
@@ -62,7 +72,7 @@ function drawObjects(detections) {
     const className = category.categoryName.replace(/ /g, "_");
     const label = germanLabels[className] || category.categoryName;
     overlayContext.strokeRect(originX, originY, width, height);
-    overlayContext.fillText(label.toUpperCase(), originX, Math.max(24, originY - 12));
+    overlayContext.fillText(`${label.toUpperCase()} ${Math.round(category.score * 100)}%`, originX, Math.max(24, originY - 12));
   });
 }
 
@@ -76,7 +86,7 @@ async function detectObjects() {
     lastVideoTime = cameraFeed.currentTime;
     lastDetection = result.detections[0];
     drawObjects(lastDetection ? [lastDetection] : []);
-    visionState.textContent = lastDetection ? "Objekt erkannt" : "Suche nach Objekt";
+    visionState.textContent = lastDetection ? "Objekt erkannt" : "Suche nach Objekt - Gegenstand näher zeigen";
   }
   animationFrame = requestAnimationFrame(detectObjects);
 }
