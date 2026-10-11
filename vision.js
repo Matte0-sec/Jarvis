@@ -101,8 +101,16 @@ async function startCamera() {
     cameraButton.textContent = "Kamera stoppen";
     detectObjects();
   } catch (error) {
-    visionState.textContent = "Kamerazugriff abgelehnt";
-    console.error("Kamera oder Gesichtserkennung konnte nicht gestartet werden.", error);
+    const errorMessages = {
+      NotAllowedError: location.protocol === "file:"
+        ? "Kamera braucht eine sichere Adresse: GitHub Page oder localhost verwenden"
+        : "Kameraberechtigung im Browser oder in Windows erlauben",
+      NotFoundError: "Keine verwendbare Kamera gefunden",
+      NotReadableError: "Kamera wird bereits von einer anderen App verwendet",
+      OverconstrainedError: "Diese Kameraeinstellung wird nicht unterstützt",
+    };
+    visionState.textContent = errorMessages[error.name] || "Kamera konnte nicht gestartet werden";
+    console.error("Kamera oder Objekterkennung konnte nicht gestartet werden.", error);
   } finally {
     cameraButton.disabled = false;
   }
