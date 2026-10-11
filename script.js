@@ -262,6 +262,15 @@ function getWebsiteTarget(command) {
   return target.startsWith("http") ? target : `https://${target}`;
 }
 
+function getDesktopApp(command) {
+  const apps = [
+    { action: "vscode", name: "Visual Studio Code", pattern: /\b(vs ?code|visual studio code)\b/ },
+    { action: "discord", name: "Discord", pattern: /\bdiscord\b/ },
+    { action: "steam", name: "Steam", pattern: /\bsteam\b/ },
+  ];
+  return apps.find((app) => app.pattern.test(command));
+}
+
 async function respond(input) {
   const command = input.trim();
   const normalized = command.toLocaleLowerCase("de-DE");
@@ -316,6 +325,15 @@ async function respond(input) {
     } catch {
       desktopState.textContent = "nicht verbunden";
       response = "Der Desktop-Modus ist nicht gestartet. Führen Sie zuerst desktop-server.ps1 auf diesem PC aus.";
+    }
+  } else if (/^(öffne|starte)\b/.test(normalized) && getDesktopApp(normalized)) {
+    const app = getDesktopApp(normalized);
+    try {
+      await runDesktopAction(app.action);
+      response = `${app.name} wurde geöffnet.`;
+    } catch {
+      desktopState.textContent = "nicht verbunden";
+      response = `Ich konnte ${app.name} nicht öffnen. Prüfen Sie, ob die App installiert ist und der Desktop-Modus läuft.`;
     }
   } else if (/(öffne|starte)/.test(normalized) && /(rechner|taschenrechner|calculator)/.test(normalized)) {
     try {
