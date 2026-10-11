@@ -6,9 +6,14 @@ $allowedOrigins = @(
 )
 
 $listener = [System.Net.HttpListener]::new()
-$listener.Prefixes.Add("http://127.0.0.1:3210/")
-$listener.Start()
-Write-Host "Jarvis Desktop-Modus bereit auf http://127.0.0.1:3210"
+$listener.Prefixes.Add("http://127.0.0.1:51827/")
+try {
+  $listener.Start()
+} catch {
+  Write-Error "Der Jarvis-Dienst konnte auf http://127.0.0.1:51827 nicht starten: $($_.Exception.Message)"
+  exit 1
+}
+Write-Host "Jarvis Desktop-Modus bereit auf http://127.0.0.1:51827"
 
 function Send-JsonResponse($response, $statusCode, $payload) {
   try {
@@ -51,6 +56,35 @@ try {
 
     if ($request.HttpMethod -eq "GET" -and $request.Url.AbsolutePath -eq "/desktop/status") {
       Send-JsonResponse $response 200 @{ ready = $true }
+      continue
+    }
+
+    if ($request.HttpMethod -eq "GET" -and $request.Url.AbsolutePath -eq "/ai/status") {
+      $apiKey = [Environment]::GetEnvironmentVariable("JARVIS_GROQ_API_KEY", "User")
+      Send-JsonResponse $response 200 @{ ready = -not [string]::IsNullOrWhiteSpace($apiKey) }
+      continue
+    }
+
+    if ($request.HttpMethod -eq "POST" -and $request.Url.AbsolutePath -eq "/ai/chat") {
+      $apiKey = [Environment]::GetEnvironmentVariable("JARVIS_GROQ_API_KEY", "User")
+      if ([string]::IsNullOrWhiteSpace($apiKey)) {
+        Send-JsonResponse $response 503 @{ error = "Groq-API-Schlüssel fehlt" }
+        continue
+      }
+
+      try {
+        $body = [System.IO.StreamReader]::new($request.InputStream).ReadToEnd() | ConvertFrom-Json
+        $groqRequest = @{
+          model = "llama-3.1-8b-instant"
+          messages = $body.messages
+          temperature = 0.5
+          max_tokens = 400
+        } | ConvertTo-Json -Depth 6
+        $groqResponse = Invoke-RestMethod -Uri "https://api.groq.com/openai/v1/chat/completions" -Method Post -ContentType "application/json" -Headers @{ Authorization = "Bearer $apiKey" } -Body $groqRequest
+        Send-JsonResponse $response 200 @{ content = $groqResponse.choices[0].message.content }
+      } catch {
+        Send-JsonResponse $response 502 @{ error = "Groq-Anfrage fehlgeschlagen" }
+      }
       continue
     }
 

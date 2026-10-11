@@ -13,9 +13,7 @@ const wakeRetry = document.querySelector("#wakeRetry");
 const orbMode = document.querySelector("#orbMode");
 const jarvisOrb = document.querySelector("#jarvisOrb");
 const orbStatus = document.querySelector("#orbStatus");
-const ollamaUrl = "http://127.0.0.1:11434/api/chat";
-const ollamaModel = "gemma3:1b";
-const desktopUrl = "http://127.0.0.1:3210";
+const desktopUrl = "http://127.0.0.1:51827";
 
 let notes = JSON.parse(localStorage.getItem("jarvis-notes") || "[]");
 let appointments = JSON.parse(localStorage.getItem("jarvis-appointments") || "[]");
@@ -217,13 +215,11 @@ function speak(text) {
   speechSynthesis.speak(utterance);
 }
 
-async function askLocalModel(input) {
-  const response = await fetch(ollamaUrl, {
+async function askGroq(input) {
+  const response = await fetch(`${desktopUrl}/ai/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: ollamaModel,
-      stream: false,
       messages: [
         {
           role: "system",
@@ -234,9 +230,9 @@ async function askLocalModel(input) {
     }),
   });
 
-  if (!response.ok) throw new Error("Lokales Modell antwortet nicht.");
+  if (!response.ok) throw new Error("Groq antwortet nicht.");
   const result = await response.json();
-  return result.message?.content?.trim() || "Dazu habe ich keine Antwort erhalten.";
+  return result.content?.trim() || "Dazu habe ich keine Antwort erhalten.";
 }
 
 async function runDesktopAction(action, target) {
@@ -361,12 +357,12 @@ async function respond(input) {
   } else if (normalized.includes("hilfe") || normalized.includes("was kannst")) {
     response = "Ich kann Ihnen die Uhrzeit und das Datum nennen, Notizen sichern, eine Websuche öffnen und die Darstellung anpassen. Geben Sie einfach eine Anweisung ein oder verwenden Sie das Mikrofon.";
   } else {
-    assistantStatus.textContent = "Die lokale KI verarbeitet Ihre Anfrage. Das kann einen Moment dauern ...";
+    assistantStatus.textContent = "Groq verarbeitet Ihre Anfrage ...";
     try {
-      response = await askLocalModel(command);
+      response = await askGroq(command);
     } catch {
       modelState.textContent = "nicht erreichbar";
-      response = "Die lokale KI ist im Moment nicht erreichbar. Bitte starten Sie Ollama und versuchen Sie es erneut.";
+      response = "Groq ist nicht bereit. Prüfen Sie den lokalen Desktop-Dienst und den Groq-API-Schlüssel.";
     }
   }
 
@@ -376,12 +372,11 @@ async function respond(input) {
   return response;
 }
 
-async function checkLocalModel() {
+async function checkAiService() {
   try {
-    const response = await fetch("http://127.0.0.1:11434/api/tags");
+    const response = await fetch(`${desktopUrl}/ai/status`);
     const result = await response.json();
-    const isInstalled = result.models?.some((model) => model.name === ollamaModel);
-    modelState.textContent = isInstalled ? "lokal bereit" : "Modell fehlt";
+    modelState.textContent = result.ready ? "Groq bereit" : "API-Schlüssel fehlt";
   } catch {
     modelState.textContent = "nicht erreichbar";
   }
@@ -470,8 +465,8 @@ if ("speechSynthesis" in window) {
 updateClock();
 setInterval(updateClock, 1000);
 renderNotes();
-checkLocalModel();
-setInterval(checkLocalModel, 15000);
+checkAiService();
+setInterval(checkAiService, 15000);
 checkDesktopService();
 setInterval(checkDesktopService, 15000);
 wakeRetry.addEventListener("click", (event) => {
