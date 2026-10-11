@@ -56,7 +56,6 @@ function setInterfaceMode(mode) {
 }
 
 function listenForClaps(analyser, samples) {
-  if (!wakeStream) return;
   analyser.getByteTimeDomainData(samples);
   let squaredTotal = 0;
   let peak = 0;
@@ -334,7 +333,11 @@ async function respond(input) {
     assistantStatus.textContent = "Live-News werden abgerufen ...";
     try {
       const news = await getLiveNews(topic);
-      response = `${news.label}: ${news.items.map((item) => `${item.title} (${item.source})`).join(". ")}`;
+      const headlines = news.items.map((item) => `- ${item.title} (Quelle: ${item.source})`).join("\n");
+      response = await askGroq(`Beantworte diese Frage anhand ausschließlich der aktuellen Schlagzeilen unten: "${command}". Erkläre in zwei bis drei kurzen deutschen Sätzen, was passiert ist und warum es relevant sein könnte. Erfinde keine Details. Nenne am Ende die Quellen kurz.
+
+    ${news.label}:
+    ${headlines}`);
     } catch {
       response = "Die Live-News sind gerade nicht erreichbar. Prüfen Sie bitte Ihre Internetverbindung und den lokalen Desktop-Dienst.";
     }

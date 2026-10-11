@@ -49,7 +49,8 @@ function Get-LiveNews($topic) {
   $feed = $feeds[$topic]
   $rss = [xml](Invoke-WebRequest -UseBasicParsing -Uri $feed.url -TimeoutSec 15).Content
   $items = @($rss.rss.channel.item | Select-Object -First 3 | ForEach-Object {
-    $titleParts = $_.title -split " - "
+      $headline = $_.title.InnerText
+      $titleParts = $headline -split " - "
     [PSCustomObject]@{
       title = $titleParts[0].Trim()
       source = if ($titleParts.Count -gt 1) { $titleParts[-1].Trim() } else { $feed.source }
