@@ -5,6 +5,8 @@ $allowedOrigins = @(
   "file://"
 )
 
+Add-Type -AssemblyName System.Net.Http
+
 $listener = [System.Net.HttpListener]::new()
 $listener.Prefixes.Add("http://127.0.0.1:51827/")
 try {
@@ -80,7 +82,16 @@ try {
           temperature = 0.5
           max_tokens = 400
         } | ConvertTo-Json -Depth 6
-        $groqResponse = Invoke-RestMethod -Uri "https://api.groq.com/openai/v1/chat/completions" -Method Post -ContentType "application/json" -Headers @{ Authorization = "Bearer $apiKey" } -Body $groqRequest
+        $httpClient = [System.Net.Http.HttpClient]::new()
+        try {
+          $groqHttpRequest = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Post, "https://api.groq.com/openai/v1/chat/completions")
+          $groqHttpRequest.Headers.Authorization = [System.Net.Http.Headers.AuthenticationHeaderValue]::new("Bearer", $apiKey)
+          $groqHttpRequest.Content = [System.Net.Http.StringContent]::new($groqRequest, [System.Text.Encoding]::UTF8, "application/json")
+          $groqHttpResponse = $httpClient.SendAsync($groqHttpRequest).GetAwaiter().GetResult()
+          $groqResponse = $groqHttpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
+        } finally {
+          $httpClient.Dispose()
+        }
         Send-JsonResponse $response 200 @{ content = $groqResponse.choices[0].message.content }
       } catch {
         Send-JsonResponse $response 502 @{ error = "Groq-Anfrage fehlgeschlagen" }
