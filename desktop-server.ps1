@@ -75,7 +75,7 @@ try {
       try {
         $body = [System.IO.StreamReader]::new($request.InputStream).ReadToEnd() | ConvertFrom-Json
         $groqRequest = @{
-          model = "llama-3.1-8b-instant"
+          model = "openai/gpt-oss-20b"
           messages = $body.messages
           temperature = 0.5
           max_tokens = 400
