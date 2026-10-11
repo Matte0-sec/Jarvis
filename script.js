@@ -245,6 +245,18 @@ async function runDesktopAction(action, target) {
   return response.json();
 }
 
+async function getLiveNews(topic) {
+  const response = await fetch(`${desktopUrl}/news?topic=${encodeURIComponent(topic)}`);
+  if (!response.ok) throw new Error("News-Dienst antwortet nicht.");
+  return response.json();
+}
+
+function getNewsTopic(command) {
+  if (/\b(elon musk|musk)\b/.test(command)) return "elon-musk";
+  if (/\b(news|neuigkeiten|nachrichten|passiert|weltgeschehen)\b/.test(command)) return "world";
+  return null;
+}
+
 function getWebsiteTarget(command) {
   const sites = {
     youtube: "https://www.youtube.com",
@@ -316,6 +328,15 @@ async function respond(input) {
     } else {
       window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, "_blank", "noopener");
       response = `Selbstverständlich. Ich suche nach ${query}.`;
+    }
+  } else if (getNewsTopic(normalized)) {
+    const topic = getNewsTopic(normalized);
+    assistantStatus.textContent = "Live-News werden abgerufen ...";
+    try {
+      const news = await getLiveNews(topic);
+      response = `${news.label}: ${news.items.map((item) => `${item.title} (${item.source})`).join(". ")}`;
+    } catch {
+      response = "Die Live-News sind gerade nicht erreichbar. Prüfen Sie bitte Ihre Internetverbindung und den lokalen Desktop-Dienst.";
     }
   } else if (/^(öffne|starte)\b/.test(normalized) && getWebsiteTarget(command)) {
     const website = getWebsiteTarget(command);
