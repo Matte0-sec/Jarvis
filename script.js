@@ -265,8 +265,8 @@ function getWebsiteTarget(command) {
 function getDesktopApp(command) {
   const apps = [
     { action: "vscode", name: "Visual Studio Code", pattern: /\b(vs ?code|visual studio code)\b/ },
-    { action: "discord", name: "Discord", pattern: /\bdiscord\b/ },
-    { action: "steam", name: "Steam", pattern: /\bsteam\b/ },
+    { action: "teams", name: "Microsoft Teams", pattern: /\b(microsoft )?teams\b/ },
+    { action: "whatsapp", name: "WhatsApp", pattern: /\bwhats ?app\b/ },
   ];
   return apps.find((app) => app.pattern.test(command));
 }

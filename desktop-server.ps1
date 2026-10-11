@@ -117,15 +117,8 @@ try {
         }
         Start-Process "code"
       }
-      "discord" {
-        $discordUpdater = Join-Path $env:LOCALAPPDATA "Discord\Update.exe"
-        if (-not (Test-Path $discordUpdater)) {
-          Send-JsonResponse $response 400 @{ error = "Discord ist nicht installiert" }
-          continue
-        }
-        Start-Process $discordUpdater "--processStart Discord"
-      }
-      "steam" { Start-Process "steam://open/main" }
+      "teams" { Start-Process "msteams:" }
+      "whatsapp" { Start-Process "whatsapp:" }
       "website" {
         try {
           $website = [Uri]$body.target
