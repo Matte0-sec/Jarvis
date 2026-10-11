@@ -256,6 +256,10 @@ function getNewsTopic(command) {
   return null;
 }
 
+function isObjectQuestion(command) {
+  return /\b(was ist das|was siehst du|was ist in der kamera|erkenn(?:e|st) du)\b/.test(command);
+}
+
 function getWebsiteTarget(command) {
   const sites = {
     youtube: "https://www.youtube.com",
@@ -328,6 +332,9 @@ async function respond(input) {
       window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, "_blank", "noopener");
       response = `Selbstverständlich. Ich suche nach ${query}.`;
     }
+  } else if (isObjectQuestion(normalized)) {
+    response = window.jarvisObjectVision?.describe()
+      || "Der Objektscanner ist nicht bereit. Starten Sie zuerst die Kamera und zeigen Sie den Gegenstand deutlich in die Bildmitte.";
   } else if (getNewsTopic(normalized)) {
     const topic = getNewsTopic(normalized);
     assistantStatus.textContent = "Live-News werden abgerufen ...";

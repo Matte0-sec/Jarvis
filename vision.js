@@ -1,4 +1,4 @@
-import { FaceDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
+import * as cocoSsd from "https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/+esm";
 
 const cameraButton = document.querySelector("#cameraButton");
 const cameraFeed = document.querySelector("#cameraFeed");
@@ -11,25 +11,33 @@ let detector;
 let mediaStream;
 let animationFrame;
 let lastVideoTime = -1;
+let lastDetection;
+
+const germanLabels = {
+  airplane: "ein Flugzeug", backpack: "einen Rucksack", banana: "eine Banane", baseball_bat: "einen Baseballschläger",
+  baseball_glove: "einen Baseballhandschuh", bear: "einen Bären", bed: "ein Bett", bench: "eine Bank", bicycle: "ein Fahrrad",
+  bird: "einen Vogel", boat: "ein Boot", book: "ein Buch", bottle: "eine Flasche", bowl: "eine Schüssel", bus: "einen Bus",
+  car: "ein Auto", cat: "eine Katze", cell_phone: "ein Handy", chair: "einen Stuhl", clock: "eine Uhr", couch: "ein Sofa",
+  cow: "eine Kuh", cup: "eine Tasse", dining_table: "einen Tisch", dog: "einen Hund", elephant: "einen Elefanten",
+  fire_hydrant: "einen Hydranten", fork: "eine Gabel", frisbee: "eine Frisbee", giraffe: "eine Giraffe", handbag: "eine Handtasche",
+  horse: "ein Pferd", keyboard: "eine Tastatur", kite: "einen Drachen", knife: "ein Messer", laptop: "einen Laptop",
+  microwave: "eine Mikrowelle", motorcycle: "ein Motorrad", mouse: "eine Computermaus", orange: "eine Orange", oven: "einen Ofen",
+  parking_meter: "eine Parkuhr", person: "eine Person", pizza: "eine Pizza", potted_plant: "eine Zimmerpflanze", refrigerator: "einen Kühlschrank",
+  remote: "eine Fernbedienung", sandwich: "ein Sandwich", scissors: "eine Schere", sheep: "ein Schaf", sink: "ein Waschbecken",
+  skateboard: "ein Skateboard", skis: "Ski", snowboard: "ein Snowboard", spoon: "einen Löffel", sports_ball: "einen Ball",
+  stop_sign: "ein Stoppschild", suitcase: "einen Koffer", surfboard: "ein Surfbrett", teddy_bear: "einen Teddybären", tennis_racket: "einen Tennisschläger",
+  tie: "eine Krawatte", toaster: "einen Toaster", toilet: "eine Toilette", toothbrush: "eine Zahnbürste", traffic_light: "eine Ampel",
+  train: "einen Zug", truck: "einen Lastwagen", tv: "einen Fernseher", umbrella: "einen Regenschirm", vase: "eine Vase", wine_glass: "ein Weinglas", zebra: "ein Zebra",
+};
 
 async function getDetector() {
   if (detector) return detector;
   visionState.textContent = "Modell wird geladen";
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
-  );
-  detector = await FaceDetector.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
-      delegate: "GPU",
-    },
-    runningMode: "VIDEO",
-    minDetectionConfidence: 0.65,
-  });
+  detector = await cocoSsd.load({ base: "lite_mobilenet_v2" });
   return detector;
 }
 
-function drawFaces(detections) {
+function drawObjects(detections) {
   faceOverlay.width = cameraFeed.videoWidth;
   faceOverlay.height = cameraFeed.videoHeight;
   overlayContext.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
@@ -39,24 +47,26 @@ function drawFaces(detections) {
   overlayContext.font = `${Math.max(18, cameraFeed.videoWidth / 36)}px Consolas`;
 
   detections.forEach((detection) => {
-    const { originX, originY, width, height } = detection.boundingBox;
+    const [originX, originY, width, height] = detection.bbox;
+    const label = germanLabels[detection.class] || detection.class;
     overlayContext.strokeRect(originX, originY, width, height);
-    overlayContext.fillText("GESICHT ERKANNT", originX, Math.max(24, originY - 12));
+    overlayContext.fillText(label.toUpperCase(), originX, Math.max(24, originY - 12));
   });
 }
 
-function detectFaces() {
+async function detectObjects() {
   if (!mediaStream || cameraFeed.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
-    animationFrame = requestAnimationFrame(detectFaces);
+    animationFrame = requestAnimationFrame(detectObjects);
     return;
   }
   if (cameraFeed.currentTime !== lastVideoTime) {
-    const result = detector.detectForVideo(cameraFeed, performance.now());
+    const result = await detector.detect(cameraFeed);
     lastVideoTime = cameraFeed.currentTime;
-    drawFaces(result.detections);
-    visionState.textContent = result.detections.length ? "Gesicht erkannt" : "Suche nach Gesicht";
+    lastDetection = result.filter((detection) => detection.score >= 0.55).sort((first, second) => second.score - first.score)[0];
+    drawObjects(lastDetection ? [lastDetection] : []);
+    visionState.textContent = lastDetection ? "Objekt erkannt" : "Suche nach Objekt";
   }
-  animationFrame = requestAnimationFrame(detectFaces);
+  animationFrame = requestAnimationFrame(detectObjects);
 }
 
 function stopCamera() {
@@ -65,6 +75,7 @@ function stopCamera() {
   mediaStream = undefined;
   cameraFeed.srcObject = null;
   overlayContext.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
+  lastDetection = undefined;
   cameraView.classList.remove("active");
   cameraButton.textContent = "Kamera starten";
   visionState.textContent = "Bereit";
@@ -88,7 +99,7 @@ async function startCamera() {
     lastVideoTime = -1;
     cameraView.classList.add("active");
     cameraButton.textContent = "Kamera stoppen";
-    detectFaces();
+    detectObjects();
   } catch (error) {
     visionState.textContent = "Kamerazugriff abgelehnt";
     console.error("Kamera oder Gesichtserkennung konnte nicht gestartet werden.", error);
@@ -106,3 +117,12 @@ cameraButton.addEventListener("click", () => {
 });
 
 window.addEventListener("beforeunload", stopCamera);
+
+window.jarvisObjectVision = {
+  describe() {
+    if (!mediaStream) return null;
+    if (!lastDetection) return "Ich erkenne noch kein Objekt zuverlässig. Halten Sie es näher an die Kamera und sorgen Sie für gutes Licht.";
+    const object = germanLabels[lastDetection.class] || `ein Objekt der Kategorie ${lastDetection.class}`;
+    return `Ich erkenne wahrscheinlich ${object}.`;
+  },
+};
