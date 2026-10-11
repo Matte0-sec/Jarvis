@@ -1,4 +1,4 @@
-import * as cocoSsd from "https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/+esm";
+import { FilesetResolver, ObjectDetector } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
 
 const cameraButton = document.querySelector("#cameraButton");
 const cameraFeed = document.querySelector("#cameraFeed");
@@ -33,7 +33,17 @@ const germanLabels = {
 async function getDetector() {
   if (detector) return detector;
   visionState.textContent = "Modell wird geladen";
-  detector = await cocoSsd.load({ base: "lite_mobilenet_v2" });
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
+  );
+  detector = await ObjectDetector.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float32/1/efficientdet_lite0.tflite",
+      delegate: "GPU",
+    },
+    runningMode: "VIDEO",
+    scoreThreshold: 0.55,
+  });
   return detector;
 }
 
@@ -47,8 +57,10 @@ function drawObjects(detections) {
   overlayContext.font = `${Math.max(18, cameraFeed.videoWidth / 36)}px Consolas`;
 
   detections.forEach((detection) => {
-    const [originX, originY, width, height] = detection.bbox;
-    const label = germanLabels[detection.class] || detection.class;
+    const { originX, originY, width, height } = detection.boundingBox;
+    const category = detection.categories[0];
+    const className = category.categoryName.replace(/ /g, "_");
+    const label = germanLabels[className] || category.categoryName;
     overlayContext.strokeRect(originX, originY, width, height);
     overlayContext.fillText(label.toUpperCase(), originX, Math.max(24, originY - 12));
   });
@@ -60,9 +72,9 @@ async function detectObjects() {
     return;
   }
   if (cameraFeed.currentTime !== lastVideoTime) {
-    const result = await detector.detect(cameraFeed);
+    const result = detector.detectForVideo(cameraFeed, performance.now());
     lastVideoTime = cameraFeed.currentTime;
-    lastDetection = result.filter((detection) => detection.score >= 0.55).sort((first, second) => second.score - first.score)[0];
+    lastDetection = result.detections[0];
     drawObjects(lastDetection ? [lastDetection] : []);
     visionState.textContent = lastDetection ? "Objekt erkannt" : "Suche nach Objekt";
   }
@@ -89,18 +101,23 @@ async function startCamera() {
 
   cameraButton.disabled = true;
   try {
-    await getDetector();
     mediaStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false,
     });
     cameraFeed.srcObject = mediaStream;
     await cameraFeed.play();
-    lastVideoTime = -1;
     cameraView.classList.add("active");
     cameraButton.textContent = "Kamera stoppen";
+    await getDetector();
+    lastVideoTime = -1;
     detectObjects();
   } catch (error) {
+    if (mediaStream) {
+      visionState.textContent = "Kamera aktiv, Objekterkennung konnte nicht geladen werden";
+      console.error("Objekterkennung konnte nicht geladen werden.", error);
+      return;
+    }
     const errorMessages = {
       NotAllowedError: location.protocol === "file:"
         ? "Kamera braucht eine sichere Adresse: GitHub Page oder localhost verwenden"
@@ -132,7 +149,8 @@ window.jarvisObjectVision = {
   describe() {
     if (!mediaStream) return null;
     if (!lastDetection) return "Ich erkenne noch kein Objekt zuverlässig. Halten Sie es näher an die Kamera und sorgen Sie für gutes Licht.";
-    const object = germanLabels[lastDetection.class] || `ein Objekt der Kategorie ${lastDetection.class}`;
+    const className = lastDetection.categories[0].categoryName.replace(/ /g, "_");
+    const object = germanLabels[className] || `ein Objekt der Kategorie ${lastDetection.categories[0].categoryName}`;
     return `Ich erkenne wahrscheinlich ${object}.`;
   },
 };
