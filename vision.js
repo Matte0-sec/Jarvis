@@ -108,8 +108,10 @@ async function startCamera() {
       NotFoundError: "Keine verwendbare Kamera gefunden",
       NotReadableError: "Kamera wird bereits von einer anderen App verwendet",
       OverconstrainedError: "Diese Kameraeinstellung wird nicht unterstützt",
+      SecurityError: "Kamera wird vom Browser aus Sicherheitsgründen blockiert",
+      TypeError: "Kamera braucht eine sichere Adresse: GitHub Page oder localhost verwenden",
     };
-    visionState.textContent = errorMessages[error.name] || "Kamera konnte nicht gestartet werden";
+    visionState.textContent = errorMessages[error.name] || `Kamera-Fehler: ${error.name || "unbekannt"}`;
     console.error("Kamera oder Objekterkennung konnte nicht gestartet werden.", error);
   } finally {
     cameraButton.disabled = false;
