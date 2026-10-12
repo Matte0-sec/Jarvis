@@ -7,6 +7,9 @@ $allowedOrigins = @(
 
 Add-Type -AssemblyName System.Net.Http
 
+$projectRoot = Split-Path -Parent $PSCommandPath
+$knownPartsPath = Join-Path $projectRoot "parts\known-parts.json"
+
 $listener = [System.Net.HttpListener]::new()
 $listener.Prefixes.Add("http://127.0.0.1:51827/")
 try {
@@ -59,6 +62,30 @@ function Get-LiveNews($topic) {
 
   if (-not $items.Count) { throw "Keine aktuellen News gefunden" }
   return @{ label = $feed.label; items = $items }
+}
+
+function Get-KnownPartsContext {
+  if (-not (Test-Path $knownPartsPath)) { return @{ text = "Keine eigene Teilebibliothek verfügbar."; images = @() } }
+
+  $parts = Get-Content -Raw -Path $knownPartsPath | ConvertFrom-Json
+  $descriptions = @()
+  $images = @()
+  foreach ($part in $parts) {
+    if ([string]::IsNullOrWhiteSpace($part.name)) { continue }
+    $details = @($part.details) -join ", "
+    $descriptions += "- $($part.name): $($part.description) Merkmale: $details"
+
+    $imagePath = Join-Path $projectRoot (Join-Path "parts" $part.image)
+    if (Test-Path $imagePath) {
+      $extension = [IO.Path]::GetExtension($imagePath).TrimStart(".").ToLowerInvariant()
+      if ($extension -in @("jpg", "jpeg", "png", "webp")) {
+        $mimeType = if ($extension -eq "jpg") { "jpeg" } else { $extension }
+        $base64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($imagePath))
+        $images += @{ name = $part.name; data = "data:image/$mimeType;base64,$base64" }
+      }
+    }
+  }
+  return @{ text = ($descriptions -join "`n"); images = $images }
 }
 
 try {
@@ -157,6 +184,16 @@ try {
           throw "Ungültiges Kamerabild"
         }
 
+        $knownParts = Get-KnownPartsContext
+        $visionContent = @(
+          @{ type = "text"; text = "Was ist auf diesem Kamerabild zu sehen? Vergleiche es mit den bekannten Referenzteilen. Nenne einen Eintrag aus der Bibliothek nur, wenn Bild und sichtbare Merkmale plausibel übereinstimmen.`n`nBekannte Teile:`n$($knownParts.text)" },
+          @{ type = "image_url"; image_url = @{ url = $body.image } }
+        )
+        foreach ($reference in $knownParts.images) {
+          $visionContent += @{ type = "text"; text = "Referenzbild für: $($reference.name)" }
+          $visionContent += @{ type = "image_url"; image_url = @{ url = $reference.data } }
+        }
+
         $visionRequest = @{
           model = "google/gemma-4-26b-a4b-it:free"
           messages = @(
@@ -166,10 +203,7 @@ try {
             },
             @{
               role = "user"
-              content = @(
-                @{ type = "text"; text = "Was ist auf diesem Kamerabild zu sehen?" },
-                @{ type = "image_url"; image_url = @{ url = $body.image } }
-              )
+              content = $visionContent
             }
           )
           max_tokens = 300

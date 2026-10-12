@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Raspberry Pi 4 Model B",
+    "image": "Raspbarry_Pi_4.jpg",
+    "description": "Kleiner Einplatinencomputer mit 40-poliger GPIO-Leiste, USB-Anschlüssen, Ethernet und HDMI-Anschlüssen.",
+    "details": ["GPIO-Leiste", "USB 3.0", "Ethernet", "Micro-HDMI"]
+  },
+  {
+    "name": "Arduino Uno",
+    "image": "Arduino.jpg",
+    "description": "Blaues Mikrocontroller-Board mit USB-B-Anschluss und Pin-Leisten.",
+    "details": ["ATmega328P", "USB-B", "digitale Pins", "analoge Pins"]
+  },
+    {
+    "name": "DC-Motor",
+    "image": "DC-Motor.jpg",
+    "description": "Kleiner Elektromotor, der Gleichstrom in mechanische Bewegung umwandelt.",
+    "details": ["Gleichstrom", "Drehzahlregelbar", "Kompakt", "Robust"]
+  }
+]
