@@ -12,6 +12,7 @@ let mediaStream;
 let animationFrame;
 let lastVideoTime = -1;
 let lastDetection;
+let personDetections = [];
 
 const germanLabels = {
   airplane: "ein Flugzeug", backpack: "einen Rucksack", banana: "eine Banane", baseball_bat: "einen Baseballschläger",
@@ -66,7 +67,7 @@ function drawObjects(detections) {
   overlayContext.lineWidth = Math.max(3, cameraFeed.videoWidth / 350);
   overlayContext.font = `${Math.max(18, cameraFeed.videoWidth / 36)}px Consolas`;
 
-  detections.forEach((detection) => {
+  detections.filter((detection) => detection.categories[0].categoryName !== "person").forEach((detection) => {
     const { originX, originY, width, height } = detection.boundingBox;
     const category = detection.categories[0];
     const className = category.categoryName.replace(/ /g, "_");
@@ -84,9 +85,12 @@ async function detectObjects() {
   if (cameraFeed.currentTime !== lastVideoTime) {
     const result = detector.detectForVideo(cameraFeed, performance.now());
     lastVideoTime = cameraFeed.currentTime;
-    lastDetection = result.detections[0];
+    personDetections = result.detections.filter((detection) => detection.categories[0].categoryName === "person");
+    lastDetection = result.detections.find((detection) => detection.categories[0].categoryName !== "person");
     drawObjects(lastDetection ? [lastDetection] : []);
-    visionState.textContent = lastDetection ? "Objekt erkannt" : "Suche nach Objekt - Gegenstand näher zeigen";
+    visionState.textContent = personDetections.length
+      ? "Person wird für Analyse ausgeblendet"
+      : lastDetection ? "Objekt erkannt" : "Suche nach Objekt - Gegenstand näher zeigen";
   }
   animationFrame = requestAnimationFrame(detectObjects);
 }
@@ -98,6 +102,7 @@ function stopCamera() {
   cameraFeed.srcObject = null;
   overlayContext.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
   lastDetection = undefined;
+  personDetections = [];
   cameraView.classList.remove("active");
   cameraButton.textContent = "Kamera starten";
   visionState.textContent = "Bereit";
@@ -163,11 +168,18 @@ window.jarvisObjectVision = {
     const scale = Math.min(1, maxWidth / cameraFeed.videoWidth);
     captureCanvas.width = Math.round(cameraFeed.videoWidth * scale);
     captureCanvas.height = Math.round(cameraFeed.videoHeight * scale);
-    captureCanvas.getContext("2d").drawImage(cameraFeed, 0, 0, captureCanvas.width, captureCanvas.height);
+    const captureContext = captureCanvas.getContext("2d");
+    captureContext.drawImage(cameraFeed, 0, 0, captureCanvas.width, captureCanvas.height);
+    personDetections.forEach((detection) => {
+      const { originX, originY, width, height } = detection.boundingBox;
+      captureContext.fillStyle = "#000";
+      captureContext.fillRect(originX * scale, originY * scale, width * scale, height * scale);
+    });
     return captureCanvas.toDataURL("image/jpeg", 0.82);
   },
   describe() {
     if (!mediaStream) return null;
+    if (personDetections.length && !lastDetection) return "Ich analysiere keine Personen. Zeigen Sie bitte nur den technischen Gegenstand in die Kamera.";
     if (!lastDetection) return "Ich erkenne noch kein Objekt zuverlässig. Halten Sie es näher an die Kamera und sorgen Sie für gutes Licht.";
     const className = lastDetection.categories[0].categoryName.replace(/ /g, "_");
     const object = germanLabels[className] || `ein Objekt der Kategorie ${lastDetection.categories[0].categoryName}`;

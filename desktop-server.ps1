@@ -162,7 +162,7 @@ try {
           messages = @(
             @{
               role = "system"
-              content = "Du bist Jarvis. Analysiere das Kamerabild auf Deutsch. Erkenne besonders technische Geräte, Platinen, Anschlüsse und Komponenten. Nenne ein konkretes Modell nur bei klaren sichtbaren Hinweisen. Beschreibe Unsicherheit ehrlich und antworte in höchstens vier kurzen Sätzen."
+              content = "Du bist Jarvis. Analysiere das Kamerabild auf Deutsch. Beschreibe ausschließlich technische Geräte, Platinen, Anschlüsse und Komponenten. Analysiere, beschreibe oder identifiziere niemals Personen. Nenne ein konkretes Modell nur bei klaren sichtbaren Hinweisen. Beschreibe Unsicherheit ehrlich und antworte in höchstens vier kurzen Sätzen."
             },
             @{
               role = "user"
