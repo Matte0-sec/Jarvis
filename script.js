@@ -271,6 +271,11 @@ function isObjectQuestion(command) {
   return /\b(was ist das|was siehst du|was ist in der kamera|erkenn(?:e|st) du)\b/.test(command);
 }
 
+function getImageSearchQuery(command) {
+  const match = command.match(/^(?:suche|zeig(?:e)?|finde)\s+(?:mir\s+)?(?:ein|eine|das|den)?\s*(?:gutes?\s+)?bild(?:er)?\s+(?:von|zu)?\s*(.+)$/i);
+  return match?.[1].trim().replace(/[?.!]+$/, "") || null;
+}
+
 function getWebsiteTarget(command) {
   const sites = {
     youtube: "https://www.youtube.com",
@@ -355,6 +360,16 @@ async function respond(input) {
       } catch (error) {
         response = error.message || "Die Bildanalyse ist gerade nicht erreichbar.";
       }
+    }
+  } else if (getImageSearchQuery(command)) {
+    const query = getImageSearchQuery(command);
+    const imageSearch = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}`;
+    try {
+      await runDesktopAction("website", imageSearch);
+      response = `Ich zeige Bildsuchergebnisse für ${query}.`;
+    } catch {
+      desktopState.textContent = "nicht verbunden";
+      response = "Der Desktop-Modus ist nicht gestartet. Führen Sie zuerst desktop-server.ps1 auf diesem PC aus.";
     }
   } else if (getNewsTopic(normalized)) {
     const topic = getNewsTopic(normalized);
