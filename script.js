@@ -26,6 +26,19 @@ let clapTimes = [];
 let lastClapTime = 0;
 let interfaceMode = "voice";
 
+function choose(options) {
+  return options[Math.floor(Math.random() * options.length)];
+}
+
+function withJarvisTone(message, kind = "neutral") {
+  const intros = {
+    neutral: ["Natürlich. ", "Gern. ", "Sehr wohl. "],
+    ready: ["Alles klar. ", "Sehr gut. ", "Erledigt. "],
+    curious: ["Interessant. ", "Ich sehe nach. ", "Eine Sekunde. "],
+  };
+  return `${choose(intros[kind])}${message}`;
+}
+
 function stopWakeListener() {
   cancelAnimationFrame(wakeAnimationFrame);
   wakeStream?.getTracks().forEach((track) => track.stop());
@@ -39,7 +52,7 @@ function activateJarvis() {
   stopWakeListener();
   wakeScreen.classList.add("awake");
   setInterfaceMode("voice");
-  assistantStatus.textContent = "Sprachmodus bereit.";
+  assistantStatus.textContent = choose(["Sprachmodus bereit.", "Ich höre zu. Was steht an?", "Systeme online. Womit beginnen wir?"]);
 }
 
 function setInterfaceMode(mode) {
@@ -308,7 +321,11 @@ async function respond(input) {
   let response;
 
   if (/^(hallo|hi|guten)/.test(normalized)) {
-    response = "Guten Tag. Es freut mich, Ihnen behilflich sein zu dürfen. Alle Systeme sind betriebsbereit.";
+    response = choose([
+      "Guten Tag. Alle Systeme sind bereit - erstaunlich kooperativ für Technik.",
+      "Hallo. Ich bin bereit. Was soll ich für Sie erledigen?",
+      "Guten Tag. Die Systeme laufen, der Kaffee leider nicht automatisch.",
+    ]);
   } else if (normalized.includes("modus wechseln") || normalized.includes("wechsel den modus")) {
     const nextMode = interfaceMode === "voice" ? "text" : "voice";
     setInterfaceMode(nextMode);
@@ -329,16 +346,16 @@ async function respond(input) {
       response = `Vermerkt. ${appointment.description} ist für ${formatAppointmentDate(new Date(appointment.date))} gespeichert.`;
     }
   } else if (normalized.includes("uhr") || normalized.includes("zeit") || normalized.includes("wie spät")) {
-    response = `Gewiss. Es ist ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} Uhr.`;
+    response = withJarvisTone(`Es ist ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} Uhr.`);
   } else if (normalized.includes("datum") || normalized.includes("welcher tag")) {
-    response = `Heute ist ${new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`;
+    response = withJarvisTone(`Heute ist ${new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`);
   } else if (normalized.startsWith("notiz")) {
     const note = command.replace(/^notiz\s*:?\s*/i, "").trim();
     if (!note) {
-      response = "Sehr gern. Was darf ich für Sie notieren?";
+      response = choose(["Gern. Was soll ich notieren?", "Mein Gedächtnis steht bereit. Was soll hinein?", "Natürlich. Diktieren Sie einfach die Notiz."]);
     } else {
       saveNote(note);
-      response = "Vermerkt. Die Notiz wurde gespeichert.";
+      response = choose(["Vermerkt. Die Notiz ist gespeichert.", "Ist notiert. Selbst mein digitales Gedächtnis kann das nicht verlieren.", "Gespeichert. Ein Punkt weniger, an den Sie später denken müssen."]);
     }
   } else if (normalized.startsWith("suche") || normalized.startsWith("search")) {
     const query = command.replace(/^(suche( nach)?|search)\s*/i, "").trim();
