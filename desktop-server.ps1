@@ -217,7 +217,11 @@ try {
           $visionHttpRequest.Headers.Add("X-Title", "Jarvis")
           $visionHttpRequest.Content = [System.Net.Http.StringContent]::new($visionRequest, [System.Text.Encoding]::UTF8, "application/json")
           $visionHttpResponse = $httpClient.SendAsync($visionHttpRequest).GetAwaiter().GetResult()
-          if (-not $visionHttpResponse.IsSuccessStatusCode) { throw "OpenRouter antwortet mit $([int]$visionHttpResponse.StatusCode)" }
+          if (-not $visionHttpResponse.IsSuccessStatusCode) {
+            $statusCode = [int]$visionHttpResponse.StatusCode
+            if ($statusCode -eq 429) { throw "Die kostenlose Bild-KI ist gerade ausgelastet. Bitte später erneut versuchen oder OpenRouter-Guthaben verwenden." }
+            throw "OpenRouter antwortet mit $statusCode"
+          }
           $visionResponse = $visionHttpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
         } finally {
           $httpClient.Dispose()
@@ -227,7 +231,7 @@ try {
         if ([string]::IsNullOrWhiteSpace($content)) { throw "Leere Bildanalyse" }
         Send-JsonResponse $response 200 @{ content = $content.Trim() }
       } catch {
-        Send-JsonResponse $response 502 @{ error = "Bildanalyse fehlgeschlagen" }
+        Send-JsonResponse $response 502 @{ error = $_.Exception.Message }
       }
       continue
     }

@@ -256,8 +256,9 @@ async function analyzeCameraImage(image) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ image }),
   });
-  if (!response.ok) throw new Error("Bildanalyse antwortet nicht.");
-  return response.json();
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Bildanalyse antwortet nicht.");
+  return result;
 }
 
 function getNewsTopic(command) {
@@ -351,8 +352,8 @@ async function respond(input) {
       try {
         const analysis = await analyzeCameraImage(image);
         response = analysis.content;
-      } catch {
-        response = window.jarvisObjectVision.describe() || "Die Bildanalyse ist gerade nicht erreichbar.";
+      } catch (error) {
+        response = error.message || "Die Bildanalyse ist gerade nicht erreichbar.";
       }
     }
   } else if (getNewsTopic(normalized)) {
