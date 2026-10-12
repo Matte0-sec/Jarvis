@@ -250,6 +250,16 @@ async function getLiveNews(topic) {
   return response.json();
 }
 
+async function analyzeCameraImage(image) {
+  const response = await fetch(`${desktopUrl}/vision/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image }),
+  });
+  if (!response.ok) throw new Error("Bildanalyse antwortet nicht.");
+  return response.json();
+}
+
 function getNewsTopic(command) {
   if (/\b(elon musk|musk)\b/.test(command)) return "elon-musk";
   if (/\b(news|neuigkeiten|nachrichten|passiert|weltgeschehen)\b/.test(command)) return "world";
@@ -333,8 +343,18 @@ async function respond(input) {
       response = `Selbstverständlich. Ich suche nach ${query}.`;
     }
   } else if (isObjectQuestion(normalized)) {
-    response = window.jarvisObjectVision?.describe()
-      || "Der Objektscanner ist nicht bereit. Starten Sie zuerst die Kamera und zeigen Sie den Gegenstand deutlich in die Bildmitte.";
+    const image = window.jarvisObjectVision?.capture();
+    if (!image) {
+      response = "Der Objektscanner ist nicht bereit. Starten Sie zuerst die Kamera und zeigen Sie den Gegenstand deutlich in die Bildmitte.";
+    } else {
+      assistantStatus.textContent = "Kameraaufnahme wird analysiert ...";
+      try {
+        const analysis = await analyzeCameraImage(image);
+        response = analysis.content;
+      } catch {
+        response = window.jarvisObjectVision.describe() || "Die Bildanalyse ist gerade nicht erreichbar.";
+      }
+    }
   } else if (getNewsTopic(normalized)) {
     const topic = getNewsTopic(normalized);
     assistantStatus.textContent = "Live-News werden abgerufen ...";

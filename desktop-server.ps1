@@ -97,6 +97,12 @@ try {
       continue
     }
 
+    if ($request.HttpMethod -eq "GET" -and $request.Url.AbsolutePath -eq "/vision/status") {
+      $apiKey = [Environment]::GetEnvironmentVariable("JARVIS_OPENROUTER_API_KEY", "User")
+      Send-JsonResponse $response 200 @{ ready = -not [string]::IsNullOrWhiteSpace($apiKey) }
+      continue
+    }
+
     if ($request.HttpMethod -eq "GET" -and $request.Url.AbsolutePath -eq "/news") {
       try {
         Send-JsonResponse $response 200 (Get-LiveNews $request.QueryString["topic"])
@@ -134,6 +140,60 @@ try {
         Send-JsonResponse $response 200 @{ content = $groqResponse.choices[0].message.content }
       } catch {
         Send-JsonResponse $response 502 @{ error = "Groq-Anfrage fehlgeschlagen" }
+      }
+      continue
+    }
+
+    if ($request.HttpMethod -eq "POST" -and $request.Url.AbsolutePath -eq "/vision/analyze") {
+      $apiKey = [Environment]::GetEnvironmentVariable("JARVIS_OPENROUTER_API_KEY", "User")
+      if ([string]::IsNullOrWhiteSpace($apiKey)) {
+        Send-JsonResponse $response 503 @{ error = "OpenRouter-API-Schlüssel fehlt" }
+        continue
+      }
+
+      try {
+        $body = [System.IO.StreamReader]::new($request.InputStream).ReadToEnd() | ConvertFrom-Json
+        if ([string]::IsNullOrWhiteSpace($body.image) -or $body.image.Length -gt 4000000 -or $body.image -notmatch '^data:image/jpeg;base64,') {
+          throw "Ungültiges Kamerabild"
+        }
+
+        $visionRequest = @{
+          model = "google/gemma-4-26b-a4b-it:free"
+          messages = @(
+            @{
+              role = "system"
+              content = "Du bist Jarvis. Analysiere das Kamerabild auf Deutsch. Erkenne besonders technische Geräte, Platinen, Anschlüsse und Komponenten. Nenne ein konkretes Modell nur bei klaren sichtbaren Hinweisen. Beschreibe Unsicherheit ehrlich und antworte in höchstens vier kurzen Sätzen."
+            },
+            @{
+              role = "user"
+              content = @(
+                @{ type = "text"; text = "Was ist auf diesem Kamerabild zu sehen?" },
+                @{ type = "image_url"; image_url = @{ url = $body.image } }
+              )
+            }
+          )
+          max_tokens = 300
+        } | ConvertTo-Json -Depth 8
+
+        $httpClient = [System.Net.Http.HttpClient]::new()
+        try {
+          $visionHttpRequest = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Post, "https://openrouter.ai/api/v1/chat/completions")
+          $visionHttpRequest.Headers.Authorization = [System.Net.Http.Headers.AuthenticationHeaderValue]::new("Bearer", $apiKey)
+          $visionHttpRequest.Headers.Add("HTTP-Referer", "https://matte0-sec.github.io/Jarvis/")
+          $visionHttpRequest.Headers.Add("X-Title", "Jarvis")
+          $visionHttpRequest.Content = [System.Net.Http.StringContent]::new($visionRequest, [System.Text.Encoding]::UTF8, "application/json")
+          $visionHttpResponse = $httpClient.SendAsync($visionHttpRequest).GetAwaiter().GetResult()
+          if (-not $visionHttpResponse.IsSuccessStatusCode) { throw "OpenRouter antwortet mit $([int]$visionHttpResponse.StatusCode)" }
+          $visionResponse = $visionHttpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
+        } finally {
+          $httpClient.Dispose()
+        }
+
+        $content = $visionResponse.choices[0].message.content
+        if ([string]::IsNullOrWhiteSpace($content)) { throw "Leere Bildanalyse" }
+        Send-JsonResponse $response 200 @{ content = $content.Trim() }
+      } catch {
+        Send-JsonResponse $response 502 @{ error = "Bildanalyse fehlgeschlagen" }
       }
       continue
     }

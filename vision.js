@@ -156,6 +156,16 @@ cameraButton.addEventListener("click", () => {
 window.addEventListener("beforeunload", stopCamera);
 
 window.jarvisObjectVision = {
+  capture() {
+    if (!mediaStream || !cameraFeed.videoWidth || !cameraFeed.videoHeight) return null;
+    const captureCanvas = document.createElement("canvas");
+    const maxWidth = 960;
+    const scale = Math.min(1, maxWidth / cameraFeed.videoWidth);
+    captureCanvas.width = Math.round(cameraFeed.videoWidth * scale);
+    captureCanvas.height = Math.round(cameraFeed.videoHeight * scale);
+    captureCanvas.getContext("2d").drawImage(cameraFeed, 0, 0, captureCanvas.width, captureCanvas.height);
+    return captureCanvas.toDataURL("image/jpeg", 0.82);
+  },
   describe() {
     if (!mediaStream) return null;
     if (!lastDetection) return "Ich erkenne noch kein Objekt zuverlässig. Halten Sie es näher an die Kamera und sorgen Sie für gutes Licht.";
