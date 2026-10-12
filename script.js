@@ -13,6 +13,14 @@ const wakeRetry = document.querySelector("#wakeRetry");
 const orbMode = document.querySelector("#orbMode");
 const jarvisOrb = document.querySelector("#jarvisOrb");
 const orbStatus = document.querySelector("#orbStatus");
+const preferencesButton = document.querySelector("#preferencesButton");
+const preferencesDialog = document.querySelector("#preferencesDialog");
+const preferencesForm = document.querySelector("#preferencesForm");
+const voiceSelect = document.querySelector("#voiceSelect");
+const speechRate = document.querySelector("#speechRate");
+const speechRateValue = document.querySelector("#speechRateValue");
+const toneSelect = document.querySelector("#toneSelect");
+const testVoiceButton = document.querySelector("#testVoiceButton");
 const desktopUrl = "http://127.0.0.1:51827";
 
 let notes = JSON.parse(localStorage.getItem("jarvis-notes") || "[]");
@@ -25,6 +33,7 @@ let wakeAnimationFrame;
 let clapTimes = [];
 let lastClapTime = 0;
 let interfaceMode = "voice";
+let preferences = JSON.parse(localStorage.getItem("jarvis-preferences") || "{}");
 
 function choose(options) {
   return options[Math.floor(Math.random() * options.length)];
@@ -128,9 +137,27 @@ async function startWakeListener() {
 function updateVoice() {
   const voices = speechSynthesis.getVoices();
   const preferredNames = ["Microsoft Katja", "Microsoft Conrad", "Google Deutsch", "German"];
-  germanVoice = voices.find((voice) => preferredNames.some((name) => voice.name.includes(name)))
+  germanVoice = voices.find((voice) => voice.voiceURI === preferences.voiceURI)
+    || voices.find((voice) => preferredNames.some((name) => voice.name.includes(name)))
     || voices.find((voice) => voice.lang.toLowerCase().startsWith("de"));
+  voiceSelect.replaceChildren();
+  voices.filter((voice) => voice.lang.toLowerCase().startsWith("de")).forEach((voice) => {
+    const option = document.createElement("option");
+    option.value = voice.voiceURI;
+    option.textContent = `${voice.name} (${voice.lang})`;
+    option.selected = voice.voiceURI === germanVoice?.voiceURI;
+    voiceSelect.append(option);
+  });
   voiceState.textContent = germanVoice ? "Deutsch bereit" : "deutsches Sprachpaket fehlt";
+}
+
+function syncPreferenceControls() {
+  speechRate.value = String(preferences.rate || 0.9);
+  speechRateValue.value = speechRate.value;
+  toneSelect.value = preferences.tone || "warm";
+  if (preferences.voiceURI && voiceSelect.querySelector(`option[value="${CSS.escape(preferences.voiceURI)}"]`)) {
+    voiceSelect.value = preferences.voiceURI;
+  }
 }
 
 function updateClock() {
@@ -212,7 +239,7 @@ function speak(text) {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = germanVoice.lang;
   utterance.voice = germanVoice;
-  utterance.rate = 0.9;
+  utterance.rate = Number(preferences.rate || 0.9);
   utterance.pitch = 0.96;
   utterance.addEventListener("start", () => {
     if (interfaceMode === "voice") {
@@ -228,6 +255,11 @@ function speak(text) {
 }
 
 async function askGroq(input) {
+  const toneInstructions = {
+    warm: "Sei warm, aufmerksam und natürlich. Nutze gelegentlich leichten trockenen Humor.",
+    humorous: "Sei freundlich und spürbar trocken-humorig, aber bleibe bei Fakten und werde nie beleidigend.",
+    calm: "Sei ruhig, sachlich, präzise und ohne Witze.",
+  };
   const response = await fetch(`${desktopUrl}/ai/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -235,7 +267,7 @@ async function askGroq(input) {
       messages: [
         {
           role: "system",
-          content: "Du bist JARVIS, ein aufmerksamer persönlicher Assistent mit eigener Stimme. Antworte auf natürlichem Deutsch, warm, klar und eher kurz. Zeige passende Emotionen wie Interesse, Erleichterung oder Sorge, ohne melodramatisch zu werden. Nutze gelegentlich trockenen, intelligenten Humor, aber nie auf Kosten des Nutzers und nie bei ernsten Themen, Fehlern oder Sicherheitsfragen. Variiere Begrüßungen und Satzanfänge, damit du nicht formelhaft klingst. Bleibe bei Fakten ehrlich: Erfinde keine ausgeführten Aktionen, Quellen oder technischen Details.",
+          content: `Du bist JARVIS, ein aufmerksamer persönlicher Assistent mit eigener Stimme. Antworte auf natürlichem Deutsch, klar und eher kurz. ${toneInstructions[preferences.tone || "warm"]} Bei ernsten Themen, Fehlern oder Sicherheitsfragen bleibst du stets sachlich. Variiere Begrüßungen und Satzanfänge. Bleibe bei Fakten ehrlich: Erfinde keine ausgeführten Aktionen, Quellen oder technischen Details.`,
         },
         { role: "user", content: input },
       ],
@@ -563,6 +595,35 @@ if ("speechSynthesis" in window) {
 } else {
   voiceState.textContent = "Sprachausgabe nicht verfügbar";
 }
+
+preferencesButton.addEventListener("click", () => {
+  syncPreferenceControls();
+  preferencesDialog.showModal();
+});
+
+speechRate.addEventListener("input", () => {
+  speechRateValue.value = speechRate.value;
+});
+
+testVoiceButton.addEventListener("click", () => {
+  const selectedVoice = speechSynthesis.getVoices().find((voice) => voice.voiceURI === voiceSelect.value);
+  if (!selectedVoice) return;
+  germanVoice = selectedVoice;
+  preferences.rate = Number(speechRate.value);
+  speak("Systemtest abgeschlossen. Diese Stimme ist für Jarvis ausgewählt.");
+});
+
+preferencesForm.addEventListener("submit", (event) => {
+  if (event.submitter?.value !== "save") return;
+  preferences = {
+    voiceURI: voiceSelect.value,
+    rate: Number(speechRate.value),
+    tone: toneSelect.value,
+  };
+  localStorage.setItem("jarvis-preferences", JSON.stringify(preferences));
+  updateVoice();
+  assistantStatus.textContent = "Sprach- und Tonpräferenzen wurden gespeichert.";
+});
 
 updateClock();
 setInterval(updateClock, 1000);

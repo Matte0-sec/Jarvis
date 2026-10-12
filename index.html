@@ -38,6 +38,7 @@
             <div class="system-state" aria-label="Systemstatus: betriebsbereit">
                 <span class="status-light"></span>
                 <span>Betriebsbereit</span>
+                <button class="settings-button" id="preferencesButton" type="button" aria-label="Sprach- und Tonpräferenzen" title="Sprach- und Tonpräferenzen">&#9881;</button>
             </div>
         </header>
 
@@ -120,5 +121,30 @@
             <span>Sprache: <strong id="voiceState">bereit</strong></span>
         </footer>
     </main>
+    <dialog class="preferences-dialog" id="preferencesDialog" aria-labelledby="preferencesTitle">
+        <form method="dialog" class="preferences-form" id="preferencesForm">
+            <div class="preferences-heading">
+                <div>
+                    <p class="eyebrow">Jarvis Konfiguration</p>
+                    <h2 id="preferencesTitle">Stimme und Ton</h2>
+                </div>
+                <button class="icon-button" value="cancel" type="submit" aria-label="Einstellungen schließen" title="Schließen">&#215;</button>
+            </div>
+            <label for="voiceSelect">Stimme</label>
+            <select id="voiceSelect"></select>
+            <label for="speechRate">Sprechtempo <output id="speechRateValue">0.9</output></label>
+            <input id="speechRate" type="range" min="0.7" max="1.2" step="0.1" value="0.9">
+            <label for="toneSelect">Antwortton</label>
+            <select id="toneSelect">
+                <option value="warm">Warm und natürlich</option>
+                <option value="humorous">Trocken und humorvoll</option>
+                <option value="calm">Ruhig und sachlich</option>
+            </select>
+            <div class="preferences-actions">
+                <button class="secondary-button" id="testVoiceButton" type="button">Stimme testen</button>
+                <button class="send-button" value="save" type="submit">Speichern</button>
+            </div>
+        </form>
+    </dialog>
 </body>
 </html>

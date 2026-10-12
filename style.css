@@ -60,6 +60,8 @@ button { cursor: pointer; }
 h1 { margin: 2px 0 0; font-size: 20px; letter-spacing: 4px; }
 .system-state { display: flex; align-items: center; gap: 8px; color: var(--accent-soft); font-family: Consolas, monospace; font-size: 12px; text-transform: uppercase; }
 .status-light { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+.settings-button { width: 30px; height: 30px; margin-left: 4px; border: 1px solid var(--line); border-radius: 2px; color: var(--accent); background: transparent; font-size: 18px; line-height: 1; }
+.settings-button:hover { border-color: var(--accent); background: var(--surface-bright); }
 
 .command-deck { display: grid; grid-template-columns: 150px 1fr auto; align-items: center; gap: 28px; padding: 34px 0; border-bottom: 1px solid var(--line); }
 .radar { position: relative; width: 116px; height: 116px; border: 1px solid var(--accent); border-radius: 50%; background: repeating-radial-gradient(circle, transparent 0 17px, rgba(82,224,196,.24) 18px 19px); animation: pulse 3s ease-in-out infinite; }
@@ -124,6 +126,18 @@ h1 { margin: 2px 0 0; font-size: 20px; letter-spacing: 4px; }
 footer { display: flex; justify-content: space-between; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-family: Consolas, monospace; font-size: 11px; text-transform: uppercase; }
 footer strong { color: var(--accent-soft); font-weight: normal; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+.preferences-dialog { width: min(420px, calc(100% - 32px)); padding: 0; border: 1px solid var(--line); border-radius: 4px; color: var(--ink); background: #091919; box-shadow: 0 24px 70px rgba(0, 0, 0, .62); }
+.preferences-dialog::backdrop { background: rgba(0, 0, 0, .7); }
+.preferences-form { display: grid; gap: 10px; padding: 22px; }
+.preferences-heading { display: flex; align-items: start; justify-content: space-between; margin-bottom: 8px; }
+.preferences-heading h2 { margin: 4px 0 0; font-size: 20px; font-weight: normal; }
+.preferences-form label { color: var(--muted); font-family: Consolas, monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+.preferences-form select, .preferences-form input { width: 100%; accent-color: var(--accent); }
+.preferences-form select { min-height: 39px; padding: 0 10px; border: 1px solid var(--line); border-radius: 2px; color: var(--ink); background: var(--surface); }
+.preferences-form output { color: var(--accent-soft); }
+.preferences-actions { display: flex; justify-content: end; gap: 8px; margin-top: 12px; }
+.secondary-button { min-height: 38px; padding: 0 13px; border: 1px solid var(--line); border-radius: 2px; color: var(--ink); background: transparent; }
+.secondary-button:hover { border-color: var(--accent); background: var(--surface-bright); }
 
 @keyframes pulse { 50% { transform: scale(1.045); box-shadow: 0 0 25px rgba(82,224,196,.3); } }
 @keyframes orb-rotate { to { transform: rotate(360deg); } }
@@ -137,6 +151,7 @@ footer strong { color: var(--accent-soft); font-weight: normal; }
     .command-deck { grid-template-columns: 92px 1fr; gap: 16px; }
     .radar { width: 82px; height: 82px; }
     .clock { display: none; }
+    .system-state { font-size: 10px; }
     .jarvis-orb { width: min(84vw, 460px); }
     .greeting h2 { font-size: 26px; }
     .vision-heading { align-items: start; flex-direction: column; gap: 12px; }
