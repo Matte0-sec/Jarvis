@@ -235,12 +235,18 @@ function getUpcomingAppointments() {
 
 function speak(text) {
   if (!("speechSynthesis" in window) || !germanVoice) return;
+  const voiceProfiles = {
+    warm: { pitch: 1, rateMultiplier: 1 },
+    humorous: { pitch: 1.08, rateMultiplier: 1.04 },
+    calm: { pitch: 0.88, rateMultiplier: 0.9 },
+  };
+  const profile = voiceProfiles[preferences.tone || "warm"];
   speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = germanVoice.lang;
   utterance.voice = germanVoice;
-  utterance.rate = Number(preferences.rate || 0.9);
-  utterance.pitch = 0.96;
+  utterance.rate = Math.min(1.3, Number(preferences.rate || 0.9) * profile.rateMultiplier);
+  utterance.pitch = profile.pitch;
   utterance.addEventListener("start", () => {
     if (interfaceMode === "voice") {
       orbMode.classList.add("speaking");
