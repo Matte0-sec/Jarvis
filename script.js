@@ -338,10 +338,15 @@ function getWebsiteTarget(command) {
   const knownSite = Object.keys(sites).find((site) => command.includes(site));
   if (knownSite) return sites[knownSite];
 
-    const target = command.replace(/^(öffne|starte)\s+(die|den|das)?\s*/i, "").trim();
+  const target = command
+    .replace(/^(öffne|starte)\s+(die|den|das)?\s*/i, "")
+    .replace(/^(webseite|website|seite)(\s+von)?\s*/i, "")
+    .trim();
+  const localTarget = /^(rechner|taschenrechner|calculator|editor|notepad|texteditor|dateien|explorer|ordner|einstellungen|settings|vs ?code|visual studio code|teams|microsoft teams|whats ?app)$/i;
+  if (!target || localTarget.test(target)) return null;
   const domainPattern = /^(https?:\/\/)?(www\.)?[a-z0-9-]+\.[a-z]{2,}(\/[^\s]*)?$/i;
-  if (!domainPattern.test(target)) return null;
-  return target.startsWith("http") ? target : `https://${target}`;
+  if (domainPattern.test(target)) return target.startsWith("http") ? target : `https://${target}`;
+  return `https://www.google.com/search?btnI=1&q=${encodeURIComponent(target)}`;
 }
 
 function getDesktopApp(command) {
@@ -443,7 +448,9 @@ async function respond(input) {
     const website = getWebsiteTarget(command);
     try {
       await runDesktopAction("website", website);
-      response = "Die Webseite wurde im Standardbrowser geöffnet.";
+      response = website.includes("google.com/search")
+        ? "Ich suche nach der passenden Webseite und öffne den besten Treffer."
+        : "Die Webseite wurde im Standardbrowser geöffnet.";
     } catch {
       desktopState.textContent = "nicht verbunden";
       response = "Der Desktop-Modus ist nicht gestartet. Führen Sie zuerst desktop-server.ps1 auf diesem PC aus.";
