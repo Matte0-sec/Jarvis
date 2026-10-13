@@ -101,12 +101,14 @@ function listenForClaps(analyser, samples) {
 }
 
 async function startWakeListener() {
+  if (wakeStream) return;
   if (!navigator.mediaDevices?.getUserMedia) {
     wakeStatus.textContent = "Mikrofon wird von diesem Browser nicht unterstützt";
-    wakeRetry.disabled = false;
+    wakeRetry.hidden = false;
     return;
   }
 
+  wakeRetry.hidden = true;
   wakeRetry.disabled = true;
   wakeStatus.textContent = "Mikrofon wird aktiviert ...";
   try {
@@ -121,7 +123,9 @@ async function startWakeListener() {
     source.connect(analyser);
     await wakeAudioContext.resume();
     if (wakeAudioContext.state !== "running") {
+      stopWakeListener();
       wakeStatus.textContent = "Einmal klicken, um das Mikrofon zu aktivieren";
+      wakeRetry.hidden = false;
       wakeRetry.disabled = false;
       return;
     }
@@ -129,7 +133,9 @@ async function startWakeListener() {
     wakeScreen.classList.add("listening");
     listenForClaps(analyser, new Uint8Array(analyser.fftSize));
   } catch {
+    stopWakeListener();
     wakeStatus.textContent = "Mikrofonberechtigung erforderlich";
+    wakeRetry.hidden = false;
     wakeRetry.disabled = false;
   }
 }
@@ -649,4 +655,5 @@ wakeRetry.addEventListener("click", (event) => {
   event.stopPropagation();
   startWakeListener();
 });
+window.addEventListener("load", startWakeListener, { once: true });
 window.addEventListener("beforeunload", stopWakeListener);
