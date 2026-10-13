@@ -307,6 +307,13 @@ async function getLiveNews(topic) {
   return response.json();
 }
 
+async function getPlaceContext(query) {
+  const response = await fetch(`${desktopUrl}/places?query=${encodeURIComponent(query)}`);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Ortsdienst antwortet nicht.");
+  return result;
+}
+
 async function analyzeCameraImage(image) {
   const response = await fetch(`${desktopUrl}/vision/analyze`, {
     method: "POST",
@@ -322,6 +329,17 @@ function getNewsTopic(command) {
   if (/\b(elon musk|musk)\b/.test(command)) return "elon-musk";
   if (/\b(news|neuigkeiten|nachrichten|passiert|weltgeschehen)\b/.test(command)) return "world";
   return null;
+}
+
+function getPlaceQuestion(command) {
+  const patterns = [
+    /^ist\s+(.+?)\s+(?:schön|gut|interessant|lebenswert)\??$/i,
+    /^wo\s+(?:ist|liegt)\s+(.+?)\??$/i,
+    /^(?:erzähle?|sag)\s+(?:mir\s+)?(?:etwas\s+)?(?:über|zu)\s+(.+?)\??$/i,
+    /^was\s+(?:weißt|weisst)\s+du\s+(?:über|von)\s+(.+?)\??$/i,
+  ];
+  const match = patterns.map((pattern) => command.match(pattern)).find(Boolean);
+  return match?.[1].trim().replace(/[?.!]+$/, "") || null;
 }
 
 function isObjectQuestion(command) {
@@ -436,6 +454,16 @@ async function respond(input) {
     } catch {
       desktopState.textContent = "nicht verbunden";
       response = "Der Desktop-Modus ist nicht gestartet. Führen Sie zuerst desktop-server.ps1 auf diesem PC aus.";
+    }
+  } else if (getPlaceQuestion(command)) {
+    const placeQuery = getPlaceQuestion(command);
+    assistantStatus.textContent = "Ort wird auf der Karte gesucht ...";
+    try {
+      const place = await getPlaceContext(placeQuery);
+      const context = `Beantworte die Frage "${command}" anhand dieser verifizierten Ortsdaten. Antworte auf Deutsch in zwei bis vier Sätzen. Erkläre bei Wertungen wie "schön" ausgewogen, dass es subjektiv ist. Erfinde keine Sehenswürdigkeiten oder Fakten.\n\nOrt: ${place.displayName}\nKoordinaten: ${place.latitude}, ${place.longitude}\nBeschreibung: ${place.summary || "Keine enzyklopädische Kurzbeschreibung verfügbar."}`;
+      response = await askGroq(context);
+    } catch {
+      response = `Ich konnte ${placeQuery} gerade nicht zuverlässig auf der Karte finden.`;
     }
   } else if (getNewsTopic(normalized)) {
     const topic = getNewsTopic(normalized);

@@ -64,6 +64,32 @@ function Get-LiveNews($topic) {
   return @{ label = $feed.label; items = $items }
 }
 
+function Get-PlaceContext($query) {
+  if ([string]::IsNullOrWhiteSpace($query) -or $query.Length -gt 100) { throw "Ungültiger Ortsname" }
+
+  $encodedQuery = [Uri]::EscapeDataString($query)
+  $headers = @{ "User-Agent" = "Jarvis-Local-Assistant/1.0" }
+  $locations = Invoke-RestMethod -Uri "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=de&q=$encodedQuery" -Headers $headers -TimeoutSec 15
+  $location = @($locations)[0]
+  if (-not $location) { throw "Ort nicht gefunden" }
+
+  $placeName = ($location.display_name -split ",")[0].Trim()
+  $summary = ""
+  try {
+    $wikiTitle = [Uri]::EscapeDataString($placeName.Replace(" ", "_"))
+    $wiki = Invoke-RestMethod -Uri "https://de.wikipedia.org/api/rest_v1/page/summary/$wikiTitle" -Headers $headers -TimeoutSec 15
+    $summary = $wiki.extract
+  } catch {}
+
+  return @{
+    name = $placeName
+    displayName = $location.display_name
+    latitude = $location.lat
+    longitude = $location.lon
+    summary = $summary
+  }
+}
+
 function Get-KnownPartsContext {
   if (-not (Test-Path $knownPartsPath)) { return @{ text = "Keine eigene Teilebibliothek verfügbar."; images = @() } }
 
@@ -135,6 +161,15 @@ try {
         Send-JsonResponse $response 200 (Get-LiveNews $request.QueryString["topic"])
       } catch {
         Send-JsonResponse $response 502 @{ error = "Live-News konnten nicht abgerufen werden" }
+      }
+      continue
+    }
+
+    if ($request.HttpMethod -eq "GET" -and $request.Url.AbsolutePath -eq "/places") {
+      try {
+        Send-JsonResponse $response 200 (Get-PlaceContext $request.QueryString["query"])
+      } catch {
+        Send-JsonResponse $response 404 @{ error = "Ort konnte nicht gefunden werden" }
       }
       continue
     }
