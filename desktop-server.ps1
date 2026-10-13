@@ -114,6 +114,27 @@ function Get-KnownPartsContext {
   return @{ text = ($descriptions -join "`n"); images = $images }
 }
 
+function Invoke-QwenCoder($prompt) {
+  if ([string]::IsNullOrWhiteSpace($prompt) -or $prompt.Length -gt 12000) { throw "Ungültige Programmieranfrage" }
+
+  $ollamaRequest = @{
+    model = "qwen2.5-coder:1.5b"
+    stream = $false
+    messages = @(
+      @{
+        role = "system"
+        content = "Du bist Qwen Coder in Jarvis. Hilf bei Programmierung, Debugging und technischen Erklärungen. Antworte auf Deutsch, präzise und praktisch. Wenn Code nötig ist, liefere ein kleines vollständiges Beispiel. Erfinde keine Testergebnisse oder APIs."
+      },
+      @{ role = "user"; content = $prompt }
+    )
+    options = @{ temperature = 0.2; num_predict = 700 }
+  } | ConvertTo-Json -Depth 6
+
+  $ollamaResponse = Invoke-RestMethod -Uri "http://127.0.0.1:11434/api/chat" -Method Post -ContentType "application/json; charset=utf-8" -Body $ollamaRequest -TimeoutSec 120
+  if ([string]::IsNullOrWhiteSpace($ollamaResponse.message.content)) { throw "Qwen Coder hat keine Antwort geliefert" }
+  return $ollamaResponse.message.content.Trim()
+}
+
 try {
   while ($listener.IsListening) {
     $context = $listener.GetContext()
@@ -153,6 +174,17 @@ try {
     if ($request.HttpMethod -eq "GET" -and $request.Url.AbsolutePath -eq "/vision/status") {
       $apiKey = [Environment]::GetEnvironmentVariable("JARVIS_OPENROUTER_API_KEY", "User")
       Send-JsonResponse $response 200 @{ ready = -not [string]::IsNullOrWhiteSpace($apiKey) }
+      continue
+    }
+
+    if ($request.HttpMethod -eq "GET" -and $request.Url.AbsolutePath -eq "/code/status") {
+      try {
+        $models = (Invoke-RestMethod -Uri "http://127.0.0.1:11434/api/tags" -TimeoutSec 5).models
+        $ready = @($models | Where-Object { $_.name -eq "qwen2.5-coder:1.5b" }).Count -gt 0
+        Send-JsonResponse $response 200 @{ ready = $ready }
+      } catch {
+        Send-JsonResponse $response 200 @{ ready = $false }
+      }
       continue
     }
 
@@ -202,6 +234,23 @@ try {
         Send-JsonResponse $response 200 @{ content = $groqResponse.choices[0].message.content }
       } catch {
         Send-JsonResponse $response 502 @{ error = "Groq-Anfrage fehlgeschlagen" }
+      }
+      continue
+    }
+
+    if ($request.HttpMethod -eq "POST" -and $request.Url.AbsolutePath -eq "/code/chat") {
+      try {
+        $body = [System.IO.StreamReader]::new($request.InputStream).ReadToEnd() | ConvertFrom-Json
+        Send-JsonResponse $response 200 @{ content = Invoke-QwenCoder $body.prompt }
+      } catch {
+        $message = if ($_.Exception.Message -match "connection|connect|refused") {
+          "Ollama läuft nicht. Starten Sie Ollama und versuchen Sie es erneut."
+        } elseif ($_.Exception.Message -match "model|not found") {
+          "Qwen Coder ist noch nicht installiert."
+        } else {
+          "Qwen Coder konnte die Anfrage nicht bearbeiten: $($_.Exception.Message)"
+        }
+        Send-JsonResponse $response 503 @{ error = $message }
       }
       continue
     }

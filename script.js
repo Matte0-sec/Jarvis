@@ -291,6 +291,17 @@ async function askGroq(input) {
   return result.content?.trim() || "Dazu habe ich keine Antwort erhalten.";
 }
 
+async function askQwenCoder(input) {
+  const response = await fetch(`${desktopUrl}/code/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: input }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Qwen Coder antwortet nicht.");
+  return result.content?.trim() || "Qwen Coder hat keine Antwort geliefert.";
+}
+
 async function runDesktopAction(action, target) {
   const response = await fetch(`${desktopUrl}/desktop/action`, {
     method: "POST",
@@ -329,6 +340,11 @@ function getNewsTopic(command) {
   if (/\b(elon musk|musk)\b/.test(command)) return "elon-musk";
   if (/\b(news|neuigkeiten|nachrichten|passiert|weltgeschehen)\b/.test(command)) return "world";
   return null;
+}
+
+function getCodeRequest(command) {
+  const match = command.match(/^(?:programmiermodus|code(?:modus)?|qwen)(?:\s*:\s*|\s+)(.+)$/i);
+  return match?.[1].trim() || null;
 }
 
 function getPlaceQuestion(command) {
@@ -393,6 +409,14 @@ async function respond(input) {
       "Hallo. Ich bin bereit. Was soll ich für Sie erledigen?",
       "Guten Tag. Die Systeme laufen, der Kaffee leider nicht automatisch.",
     ]);
+  } else if (getCodeRequest(command)) {
+    const codeRequest = getCodeRequest(command);
+    assistantStatus.textContent = "Qwen Coder analysiert den Code ...";
+    try {
+      response = await askQwenCoder(codeRequest);
+    } catch (error) {
+      response = error.message || "Qwen Coder ist nicht bereit.";
+    }
   } else if (normalized.includes("modus wechseln") || normalized.includes("wechsel den modus")) {
     const nextMode = interfaceMode === "voice" ? "text" : "voice";
     setInterfaceMode(nextMode);
