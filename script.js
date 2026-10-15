@@ -349,6 +349,13 @@ async function getPlaceContext(query) {
   return result;
 }
 
+async function getWeather(city) {
+  const response = await fetch(`${desktopUrl}/weather?city=${encodeURIComponent(city)}`);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Wetterdienst antwortet nicht.");
+  return result;
+}
+
 async function analyzeCameraImage(image) {
   const response = await fetch(`${desktopUrl}/vision/analyze`, {
     method: "POST",
@@ -392,6 +399,11 @@ function getPlaceQuestion(command) {
   ];
   const match = patterns.map((pattern) => command.match(pattern)).find(Boolean);
   return match?.[1].trim().replace(/[?.!]+$/, "") || null;
+}
+
+function getWeatherCity(command) {
+  const match = command.match(/^(?:wie (?:ist|wird) das wetter|wetter)(?:.*?)?(?:in|für)\s+(.+?)[?.!]*$/i);
+  return match?.[1].trim() || null;
 }
 
 function isObjectQuestion(command) {
@@ -460,6 +472,15 @@ async function respond(input) {
       response = await askWritingAssistant(writingRequest, getWritingType(command));
     } catch (error) {
       response = error.message || "Der Schreibassistent ist nicht bereit.";
+    }
+  } else if (getWeatherCity(command)) {
+    const city = getWeatherCity(command);
+    assistantStatus.textContent = "Aktuelles Wetter wird abgerufen ...";
+    try {
+      const weather = await getWeather(city);
+      response = `In ${weather.place} ist es aktuell ${weather.condition} bei ${Math.round(weather.temperature)} Grad. Gefühlt sind es ${Math.round(weather.apparentTemperature)} Grad, der Wind weht mit ${Math.round(weather.windSpeed)} km/h und es fallen ${weather.precipitation} Millimeter Niederschlag.`;
+    } catch {
+      response = `Ich konnte das Wetter für ${city} gerade nicht abrufen.`;
     }
   } else if (normalized.includes("modus wechseln") || normalized.includes("wechsel den modus")) {
     const nextMode = interfaceMode === "voice" ? "text" : "voice";

@@ -90,6 +90,50 @@ function Get-PlaceContext($query) {
   }
 }
 
+function Get-Weather($query) {
+  if ([string]::IsNullOrWhiteSpace($query) -or $query.Length -gt 100) { throw "Ungültiger Ortsname" }
+
+  $encodedQuery = [Uri]::EscapeDataString($query)
+  $headers = @{ "User-Agent" = "Jarvis-Local-Assistant/1.0" }
+  $locations = Invoke-RestMethod -Uri "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=de&q=$encodedQuery" -Headers $headers -TimeoutSec 15
+  $location = @($locations)[0]
+  if (-not $location) { throw "Ort nicht gefunden" }
+
+  $weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=$($location.lat)&longitude=$($location.lon)&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&wind_speed_unit=kmh&timezone=auto"
+  $weather = Invoke-RestMethod -Uri $weatherUrl -TimeoutSec 15
+  $weatherCodes = @{
+    0 = "klar"
+    1 = "überwiegend klar"
+    2 = "teilweise bewölkt"
+    3 = "bedeckt"
+    45 = "neblig"
+    48 = "Nebel mit Reif"
+    51 = "leichter Nieselregen"
+    53 = "mäßiger Nieselregen"
+    55 = "starker Nieselregen"
+    61 = "leichter Regen"
+    63 = "mäßiger Regen"
+    65 = "starker Regen"
+    71 = "leichter Schneefall"
+    73 = "mäßiger Schneefall"
+    75 = "starker Schneefall"
+    80 = "Regenschauer"
+    81 = "mäßige Regenschauer"
+    82 = "starke Regenschauer"
+    95 = "Gewitter"
+  }
+  $current = $weather.current
+  $placeName = ($location.display_name -split ",")[0].Trim()
+  return @{
+    place = $placeName
+    temperature = $current.temperature_2m
+    apparentTemperature = $current.apparent_temperature
+    precipitation = $current.precipitation
+    windSpeed = $current.wind_speed_10m
+    condition = if ($weatherCodes.ContainsKey([int]$current.weather_code)) { $weatherCodes[[int]$current.weather_code] } else { "unbekannt" }
+  }
+}
+
 function Get-KnownPartsContext {
   if (-not (Test-Path $knownPartsPath)) { return @{ text = "Keine eigene Teilebibliothek verfügbar."; images = @() } }
 
@@ -202,6 +246,15 @@ try {
         Send-JsonResponse $response 200 (Get-PlaceContext $request.QueryString["query"])
       } catch {
         Send-JsonResponse $response 404 @{ error = "Ort konnte nicht gefunden werden" }
+      }
+      continue
+    }
+
+    if ($request.HttpMethod -eq "GET" -and $request.Url.AbsolutePath -eq "/weather") {
+      try {
+        Send-JsonResponse $response 200 (Get-Weather $request.QueryString["city"])
+      } catch {
+        Send-JsonResponse $response 404 @{ error = "Wetterdaten für diesen Ort konnten nicht abgerufen werden" }
       }
       continue
     }
