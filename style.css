@@ -139,6 +139,23 @@ footer strong { color: var(--accent-soft); font-weight: normal; }
 .secondary-button { min-height: 38px; padding: 0 13px; border: 1px solid var(--line); border-radius: 2px; color: var(--ink); background: transparent; }
 .secondary-button:hover { border-color: var(--accent); background: var(--surface-bright); }
 
+.ghost-protocol { background: #080a0c; background-image: none; font-family: Consolas, monospace; }
+.ghost-protocol .wake-screen, .ghost-protocol .orb-mode, .ghost-protocol .command-deck, .ghost-protocol .vision-panel, .ghost-protocol .side-panel, .ghost-protocol footer, .ghost-protocol .settings-button, .ghost-protocol .mic-button { display: none !important; }
+.ghost-protocol .app-shell { width: min(760px, calc(100% - 32px)); padding-top: 20vh; }
+.ghost-protocol .topbar { justify-content: center; padding-bottom: 14px; }
+.ghost-protocol .identity-mark, .ghost-protocol .eyebrow { display: none; }
+.ghost-protocol .identity h1 { margin: 0; color: var(--ink); font-size: 13px; font-weight: normal; letter-spacing: 3px; }
+.ghost-protocol .system-state { display: none; }
+.ghost-protocol .workspace { display: block; min-height: 0; }
+.ghost-protocol .conversation { min-height: 0; padding: 20px 0; }
+.ghost-protocol .chat-log { max-height: 46vh; gap: 12px; }
+.ghost-protocol .message { max-width: 100%; }
+.ghost-protocol .message p { padding: 9px 0; border: 0; border-radius: 0; background: transparent; }
+.ghost-protocol .user-message p { color: var(--accent-soft); text-align: right; }
+.ghost-protocol .composer { grid-template-columns: minmax(0, 1fr) auto; margin-top: 16px; }
+.ghost-protocol .composer input { border-color: #34404a; background: #0d1116; }
+.ghost-protocol .send-button { padding: 0 14px; background: transparent; color: var(--accent); }
+
 @keyframes pulse { 50% { transform: scale(1.045); box-shadow: 0 0 25px rgba(82,224,196,.3); } }
 @keyframes orb-rotate { to { transform: rotate(360deg); } }
 @keyframes orb-rotate-reverse { to { transform: rotate(-360deg); } }

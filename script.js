@@ -34,6 +34,7 @@ let clapTimes = [];
 let lastClapTime = 0;
 let interfaceMode = "voice";
 let preferences = JSON.parse(localStorage.getItem("jarvis-preferences") || "{}");
+let ghostProtocol = sessionStorage.getItem("jarvis-ghost-protocol") === "true";
 
 function choose(options) {
   return options[Math.floor(Math.random() * options.length)];
@@ -58,6 +59,7 @@ function stopWakeListener() {
 }
 
 function activateJarvis() {
+  if (ghostProtocol) return;
   stopWakeListener();
   wakeScreen.classList.add("awake");
   setInterfaceMode("voice");
@@ -75,6 +77,23 @@ function setInterfaceMode(mode) {
     orbMode.classList.remove("listening", "speaking");
     promptInput.focus();
   }
+}
+
+function setGhostProtocol(enabled) {
+  ghostProtocol = enabled;
+  sessionStorage.setItem("jarvis-ghost-protocol", String(enabled));
+  document.body.classList.toggle("ghost-protocol", enabled);
+  speechSynthesis.cancel();
+  stopWakeListener();
+  setInterfaceMode("text");
+  wakeScreen.classList.toggle("awake", enabled);
+  promptInput.focus();
+}
+
+function isGhostProtocolCommand(command) {
+  const normalized = command.toLocaleLowerCase("de-DE");
+  return normalized.startsWith("suche")
+    || (/^(öffne|starte)\b/.test(normalized) && (Boolean(getWebsiteTarget(command)) || /(dateien|explorer|ordner)/.test(normalized)));
 }
 
 function listenForClaps(analyser, samples) {
@@ -101,7 +120,7 @@ function listenForClaps(analyser, samples) {
 }
 
 async function startWakeListener() {
-  if (wakeStream) return;
+  if (ghostProtocol || wakeStream) return;
   if (!navigator.mediaDevices?.getUserMedia) {
     wakeStatus.textContent = "Mikrofon wird von diesem Browser nicht unterstützt";
     wakeRetry.hidden = false;
@@ -240,7 +259,7 @@ function getUpcomingAppointments() {
 }
 
 function speak(text) {
-  if (!("speechSynthesis" in window) || !germanVoice) return;
+  if (ghostProtocol || !("speechSynthesis" in window) || !germanVoice) return;
   const voiceProfiles = {
     warm: { pitch: 1, rateMultiplier: 1 },
     humorous: { pitch: 1.08, rateMultiplier: 1.04 },
@@ -451,7 +470,15 @@ async function respond(input) {
   const normalized = command.toLocaleLowerCase("de-DE");
   let response;
 
-  if (/^(hallo|hi|guten)/.test(normalized)) {
+  if (/^(?:aktiviere|aktivire) ghost protocol\.?$/i.test(command)) {
+    setGhostProtocol(true);
+    response = "Ghost Protocol aktiv. Textmodus aktiv; Zugriff ist auf Dateien und Webseiten begrenzt.";
+  } else if (/^(?:deaktiviere|beende) ghost protocol\.?$/i.test(command)) {
+    setGhostProtocol(false);
+    response = "Ghost Protocol beendet. Textmodus bleibt aktiv; Sprachmodus kann wieder gewählt werden.";
+  } else if (ghostProtocol && !isGhostProtocolCommand(command)) {
+    response = "Ghost Protocol beschränkt Befehle auf Dateien und Webseiten.";
+  } else if (/^(hallo|hi|guten)/.test(normalized)) {
     response = choose([
       "Guten Tag. Alle Systeme sind bereit - erstaunlich kooperativ für Technik.",
       "Hallo. Ich bin bereit. Was soll ich für Sie erledigen?",
@@ -774,3 +801,7 @@ wakeRetry.addEventListener("click", (event) => {
 });
 window.addEventListener("load", startWakeListener, { once: true });
 window.addEventListener("beforeunload", stopWakeListener);
+
+if (ghostProtocol) {
+  setGhostProtocol(true);
+}
