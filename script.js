@@ -302,6 +302,30 @@ async function askQwenCoder(input) {
   return result.content?.trim() || "Qwen Coder hat keine Antwort geliefert.";
 }
 
+async function askWritingAssistant(input, type) {
+  const typeInstructions = {
+    essay: "einen klar gegliederten Aufsatz mit Einleitung, Hauptteil und Schluss",
+    report: "einen sachlichen Bericht mit passenden Überschriften und nachvollziehbarer Reihenfolge",
+    application: "eine individuelle, professionelle und höfliche Bewerbung",
+  };
+  const response = await fetch(`${desktopUrl}/ai/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: [
+        {
+          role: "system",
+          content: `Du bist ein sorgfältiger deutscher Schreibassistent. Erstelle oder überarbeite ${typeInstructions[type]}. Schreibe verständlich, grammatikalisch korrekt und passend zur angeforderten Länge. Wenn wichtige Angaben fehlen, verwende [Platzhalter] statt Fakten zu erfinden. Gib bei einer Überarbeitung zuerst die überarbeitete Fassung aus.`,
+        },
+        { role: "user", content: input },
+      ],
+    }),
+  });
+  if (!response.ok) throw new Error("Der Schreibassistent antwortet nicht.");
+  const result = await response.json();
+  return result.content?.trim() || "Der Schreibassistent hat keinen Text geliefert.";
+}
+
 async function runDesktopAction(action, target) {
   const response = await fetch(`${desktopUrl}/desktop/action`, {
     method: "POST",
@@ -345,6 +369,18 @@ function getNewsTopic(command) {
 function getCodeRequest(command) {
   const match = command.match(/^(?:programmiermodus|code(?:modus)?|qwen)(?:\s*:\s*|\s+)(.+)$/i);
   return match?.[1].trim() || null;
+}
+
+function getWritingRequest(command) {
+  const match = command.match(/^(?:schreib(?:e)?|verfasse|textmodus|aufsatz|bericht|bewerbung)(?:\s*:\s*|\s+)(.+)$/i);
+  return match?.[1].trim() || null;
+}
+
+function getWritingType(command) {
+  const normalized = command.toLocaleLowerCase("de-DE");
+  if (/\bbewerbung|anschreiben|lebenslauf\b/.test(normalized)) return "application";
+  if (/\bbericht|protokoll|report\b/.test(normalized)) return "report";
+  return "essay";
 }
 
 function getPlaceQuestion(command) {
@@ -416,6 +452,14 @@ async function respond(input) {
       response = await askQwenCoder(codeRequest);
     } catch (error) {
       response = error.message || "Qwen Coder ist nicht bereit.";
+    }
+  } else if (getWritingRequest(command)) {
+    const writingRequest = getWritingRequest(command);
+    assistantStatus.textContent = "Schreibassistent erstellt den Entwurf ...";
+    try {
+      response = await askWritingAssistant(writingRequest, getWritingType(command));
+    } catch (error) {
+      response = error.message || "Der Schreibassistent ist nicht bereit.";
     }
   } else if (normalized.includes("modus wechseln") || normalized.includes("wechsel den modus")) {
     const nextMode = interfaceMode === "voice" ? "text" : "voice";
