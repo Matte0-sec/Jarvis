@@ -179,14 +179,14 @@ function Invoke-QwenCoder($prompt) {
   return $ollamaResponse.message.content.Trim()
 }
 
-function Get-OmegaWebsiteStatus {
+function Get-OmegaWebsiteStatus($repositoryName, $fallbackUrl) {
   $headers = @{ "User-Agent" = "Jarvis-Omega-Control" }
-  $repository = Invoke-RestMethod -Uri "https://api.github.com/repos/Matte0-sec/Jarvis" -Headers $headers -TimeoutSec 15
-  $workflowRun = (Invoke-RestMethod -Uri "https://api.github.com/repos/Matte0-sec/Jarvis/actions/runs?per_page=1" -Headers $headers -TimeoutSec 15).workflow_runs[0]
+  $repository = Invoke-RestMethod -Uri "https://api.github.com/repos/Matte0-sec/$repositoryName" -Headers $headers -TimeoutSec 15
+  $workflowRun = (Invoke-RestMethod -Uri "https://api.github.com/repos/Matte0-sec/$repositoryName/actions/runs?per_page=1" -Headers $headers -TimeoutSec 15).workflow_runs[0]
   return @{
-    name = "Jarvis"
+    name = $repository.name
     repository = $repository.full_name
-    websiteUrl = if ($repository.homepage) { $repository.homepage } else { "https://matte0-sec.github.io/Jarvis/" }
+    websiteUrl = if ($repository.homepage) { $repository.homepage } else { $fallbackUrl }
     repositoryUrl = $repository.html_url
     deployment = if ($workflowRun.conclusion -eq "success") { "erfolgreich" } elseif ($workflowRun.status -eq "completed") { "fehlgeschlagen" } else { "läuft" }
     updatedAt = $workflowRun.updated_at
@@ -248,7 +248,10 @@ try {
 
     if ($request.HttpMethod -eq "GET" -and $request.Url.AbsolutePath -eq "/websites/status") {
       try {
-        Send-JsonResponse $response 200 (Get-OmegaWebsiteStatus)
+        Send-JsonResponse $response 200 @{ websites = @(
+          Get-OmegaWebsiteStatus "Jarvis" "https://matte0-sec.github.io/Jarvis/"
+          Get-OmegaWebsiteStatus "Naturwissenschaften" "https://matte0-sec.github.io/Naturwissenschaften/"
+        ) }
       } catch {
         Send-JsonResponse $response 502 @{ error = "Website-Status konnte nicht abgerufen werden" }
       }

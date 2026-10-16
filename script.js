@@ -27,6 +27,11 @@ const jarvisWebsiteStatus = document.querySelector("#jarvisWebsiteStatus");
 const jarvisWebsiteLight = document.querySelector("#jarvisWebsiteLight");
 const jarvisWebsiteRepo = document.querySelector("#jarvisWebsiteRepo");
 const jarvisRepositoryLink = document.querySelector("#jarvisRepositoryLink");
+const openScienceWebsiteButton = document.querySelector("#openScienceWebsiteButton");
+const scienceWebsiteStatus = document.querySelector("#scienceWebsiteStatus");
+const scienceWebsiteLight = document.querySelector("#scienceWebsiteLight");
+const scienceWebsiteRepo = document.querySelector("#scienceWebsiteRepo");
+const scienceRepositoryLink = document.querySelector("#scienceRepositoryLink");
 const desktopUrl = "http://127.0.0.1:51827";
 
 let notes = JSON.parse(localStorage.getItem("jarvis-notes") || "[]");
@@ -379,20 +384,32 @@ async function runDesktopAction(action, target) {
 async function loadWebsiteStatus() {
   if (!omegaProtocol) return;
   jarvisWebsiteStatus.textContent = "Status wird geprüft ...";
+  scienceWebsiteStatus.textContent = "Status wird geprüft ...";
   jarvisWebsiteLight.classList.remove("offline");
+  scienceWebsiteLight.classList.remove("offline");
   try {
     const response = await fetch(`${desktopUrl}/websites/status`);
-    const website = await response.json();
-    if (!response.ok) throw new Error(website.error);
-    const timestamp = new Date(website.updatedAt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
-    jarvisWebsiteRepo.textContent = website.repository;
-    jarvisRepositoryLink.href = website.repositoryUrl;
-    openJarvisWebsiteButton.dataset.url = website.websiteUrl;
-    jarvisWebsiteStatus.textContent = `Deployment ${website.deployment} · zuletzt geprüft: ${timestamp}`;
-    jarvisWebsiteLight.classList.toggle("offline", website.deployment === "fehlgeschlagen");
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+    const websites = {
+      Jarvis: { status: jarvisWebsiteStatus, light: jarvisWebsiteLight, repo: jarvisWebsiteRepo, link: jarvisRepositoryLink, button: openJarvisWebsiteButton },
+      Naturwissenschaften: { status: scienceWebsiteStatus, light: scienceWebsiteLight, repo: scienceWebsiteRepo, link: scienceRepositoryLink, button: openScienceWebsiteButton },
+    };
+    result.websites.forEach((website) => {
+      const card = websites[website.name];
+      if (!card) return;
+      const timestamp = new Date(website.updatedAt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
+      card.repo.textContent = website.repository;
+      card.link.href = website.repositoryUrl;
+      card.button.dataset.url = website.websiteUrl;
+      card.status.textContent = `Deployment ${website.deployment} · zuletzt geprüft: ${timestamp}`;
+      card.light.classList.toggle("offline", website.deployment === "fehlgeschlagen");
+    });
   } catch {
     jarvisWebsiteLight.classList.add("offline");
+    scienceWebsiteLight.classList.add("offline");
     jarvisWebsiteStatus.textContent = "Status nicht erreichbar. Prüfen Sie den lokalen Desktop-Dienst.";
+    scienceWebsiteStatus.textContent = "Status nicht erreichbar. Prüfen Sie den lokalen Desktop-Dienst.";
   }
 }
 
@@ -843,6 +860,11 @@ refreshWebsitesButton.addEventListener("click", loadWebsiteStatus);
 openJarvisWebsiteButton.addEventListener("click", () => {
   if (!omegaProtocol) return;
   const websiteUrl = openJarvisWebsiteButton.dataset.url || "https://matte0-sec.github.io/Jarvis/";
+  window.open(websiteUrl, "_blank", "noopener");
+});
+openScienceWebsiteButton.addEventListener("click", () => {
+  if (!omegaProtocol) return;
+  const websiteUrl = openScienceWebsiteButton.dataset.url || "https://matte0-sec.github.io/Naturwissenschaften/";
   window.open(websiteUrl, "_blank", "noopener");
 });
 
