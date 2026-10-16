@@ -179,6 +179,20 @@ function Invoke-QwenCoder($prompt) {
   return $ollamaResponse.message.content.Trim()
 }
 
+function Get-OmegaWebsiteStatus {
+  $headers = @{ "User-Agent" = "Jarvis-Omega-Control" }
+  $repository = Invoke-RestMethod -Uri "https://api.github.com/repos/Matte0-sec/Jarvis" -Headers $headers -TimeoutSec 15
+  $workflowRun = (Invoke-RestMethod -Uri "https://api.github.com/repos/Matte0-sec/Jarvis/actions/runs?per_page=1" -Headers $headers -TimeoutSec 15).workflow_runs[0]
+  return @{
+    name = "Jarvis"
+    repository = $repository.full_name
+    websiteUrl = if ($repository.homepage) { $repository.homepage } else { "https://matte0-sec.github.io/Jarvis/" }
+    repositoryUrl = $repository.html_url
+    deployment = if ($workflowRun.conclusion -eq "success") { "erfolgreich" } elseif ($workflowRun.status -eq "completed") { "fehlgeschlagen" } else { "läuft" }
+    updatedAt = $workflowRun.updated_at
+  }
+}
+
 try {
   while ($listener.IsListening) {
     $context = $listener.GetContext()
@@ -228,6 +242,15 @@ try {
         Send-JsonResponse $response 200 @{ ready = $ready }
       } catch {
         Send-JsonResponse $response 200 @{ ready = $false }
+      }
+      continue
+    }
+
+    if ($request.HttpMethod -eq "GET" -and $request.Url.AbsolutePath -eq "/websites/status") {
+      try {
+        Send-JsonResponse $response 200 (Get-OmegaWebsiteStatus)
+      } catch {
+        Send-JsonResponse $response 502 @{ error = "Website-Status konnte nicht abgerufen werden" }
       }
       continue
     }

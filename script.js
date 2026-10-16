@@ -21,6 +21,12 @@ const speechRate = document.querySelector("#speechRate");
 const speechRateValue = document.querySelector("#speechRateValue");
 const toneSelect = document.querySelector("#toneSelect");
 const testVoiceButton = document.querySelector("#testVoiceButton");
+const refreshWebsitesButton = document.querySelector("#refreshWebsitesButton");
+const openJarvisWebsiteButton = document.querySelector("#openJarvisWebsiteButton");
+const jarvisWebsiteStatus = document.querySelector("#jarvisWebsiteStatus");
+const jarvisWebsiteLight = document.querySelector("#jarvisWebsiteLight");
+const jarvisWebsiteRepo = document.querySelector("#jarvisWebsiteRepo");
+const jarvisRepositoryLink = document.querySelector("#jarvisRepositoryLink");
 const desktopUrl = "http://127.0.0.1:51827";
 
 let notes = JSON.parse(localStorage.getItem("jarvis-notes") || "[]");
@@ -101,6 +107,7 @@ function setOmegaProtocol(enabled) {
     stopWakeListener();
     setInterfaceMode("text");
     wakeScreen.classList.add("awake");
+    loadWebsiteStatus();
   }
 }
 
@@ -367,6 +374,26 @@ async function runDesktopAction(action, target) {
   });
   if (!response.ok) throw new Error("Desktop-Dienst antwortet nicht.");
   return response.json();
+}
+
+async function loadWebsiteStatus() {
+  if (!omegaProtocol) return;
+  jarvisWebsiteStatus.textContent = "Status wird geprüft ...";
+  jarvisWebsiteLight.classList.remove("offline");
+  try {
+    const response = await fetch(`${desktopUrl}/websites/status`);
+    const website = await response.json();
+    if (!response.ok) throw new Error(website.error);
+    const timestamp = new Date(website.updatedAt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
+    jarvisWebsiteRepo.textContent = website.repository;
+    jarvisRepositoryLink.href = website.repositoryUrl;
+    openJarvisWebsiteButton.dataset.url = website.websiteUrl;
+    jarvisWebsiteStatus.textContent = `Deployment ${website.deployment} · zuletzt geprüft: ${timestamp}`;
+    jarvisWebsiteLight.classList.toggle("offline", website.deployment === "fehlgeschlagen");
+  } catch {
+    jarvisWebsiteLight.classList.add("offline");
+    jarvisWebsiteStatus.textContent = "Status nicht erreichbar. Prüfen Sie den lokalen Desktop-Dienst.";
+  }
 }
 
 async function getLiveNews(topic) {
@@ -810,6 +837,16 @@ preferencesForm.addEventListener("submit", (event) => {
   localStorage.setItem("jarvis-preferences", JSON.stringify(preferences));
   updateVoice();
   assistantStatus.textContent = "Sprach- und Tonpräferenzen wurden gespeichert.";
+});
+
+refreshWebsitesButton.addEventListener("click", loadWebsiteStatus);
+openJarvisWebsiteButton.addEventListener("click", async () => {
+  const websiteUrl = openJarvisWebsiteButton.dataset.url || "https://matte0-sec.github.io/Jarvis/";
+  try {
+    await runDesktopAction("website", websiteUrl);
+  } catch {
+    window.open(websiteUrl, "_blank", "noopener");
+  }
 });
 
 updateClock();
