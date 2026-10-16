@@ -81,6 +81,7 @@ function setInterfaceMode(mode) {
 }
 
 function setGhostProtocol(enabled) {
+  if (enabled) setOmegaProtocol(false);
   ghostProtocol = enabled;
   sessionStorage.setItem("jarvis-ghost-protocol", String(enabled));
   document.body.classList.toggle("ghost-protocol", enabled);
