@@ -199,5 +199,19 @@
             </div>
         </form>
     </dialog>
+    <dialog class="omega-code-dialog" id="omegaCodeDialog" aria-labelledby="omegaCodeTitle">
+        <form method="dialog" class="omega-code-form" id="omegaCodeForm">
+            <p class="eyebrow">Omega Freigabe</p>
+            <h2 id="omegaCodeTitle">Binärcode erforderlich</h2>
+            <p>Geben Sie CODE als vier 4-Bit-Blöcke ein.</p>
+            <label class="sr-only" for="omegaCodeInput">Binärcode</label>
+            <input id="omegaCodeInput" type="text" inputmode="numeric" autocomplete="off" placeholder="0000 0000 0000 0000" maxlength="19" pattern="[01 ]+" required>
+            <p class="omega-code-error" id="omegaCodeError" aria-live="polite"></p>
+            <div class="preferences-actions">
+                <button class="secondary-button" value="cancel" type="submit">Abbrechen</button>
+                <button class="send-button" value="confirm" type="submit">Freigeben</button>
+            </div>
+        </form>
+    </dialog>
 </body>
 </html>

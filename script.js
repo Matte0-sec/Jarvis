@@ -32,6 +32,10 @@ const scienceWebsiteStatus = document.querySelector("#scienceWebsiteStatus");
 const scienceWebsiteLight = document.querySelector("#scienceWebsiteLight");
 const scienceWebsiteRepo = document.querySelector("#scienceWebsiteRepo");
 const scienceRepositoryLink = document.querySelector("#scienceRepositoryLink");
+const omegaCodeDialog = document.querySelector("#omegaCodeDialog");
+const omegaCodeForm = document.querySelector("#omegaCodeForm");
+const omegaCodeInput = document.querySelector("#omegaCodeInput");
+const omegaCodeError = document.querySelector("#omegaCodeError");
 const desktopUrl = "http://127.0.0.1:51827";
 
 let notes = JSON.parse(localStorage.getItem("jarvis-notes") || "[]");
@@ -46,7 +50,8 @@ let lastClapTime = 0;
 let interfaceMode = "voice";
 let preferences = JSON.parse(localStorage.getItem("jarvis-preferences") || "{}");
 let ghostProtocol = sessionStorage.getItem("jarvis-ghost-protocol") === "true";
-let omegaProtocol = sessionStorage.getItem("jarvis-omega-protocol") === "true";
+let omegaProtocol = false;
+const omegaPasscode = "1100111111011110";
 
 function choose(options) {
   return options[Math.floor(Math.random() * options.length)];
@@ -106,7 +111,6 @@ function setGhostProtocol(enabled) {
 
 function setOmegaProtocol(enabled) {
   omegaProtocol = enabled;
-  sessionStorage.setItem("jarvis-omega-protocol", String(enabled));
   document.body.classList.toggle("omega-protocol", enabled);
   if (enabled) {
     stopWakeListener();
@@ -538,8 +542,10 @@ async function respond(input) {
     if (!ghostProtocol) {
       response = "Omega Modus kann nur innerhalb von Ghost Protocol aktiviert werden.";
     } else {
-      setOmegaProtocol(true);
-      response = "Omega Modus aktiv. Volle Jarvis-Funktionalität ist verfügbar.";
+      omegaCodeError.textContent = "";
+      omegaCodeInput.value = "";
+      omegaCodeDialog.showModal();
+      response = "Omega Freigabe wartet auf den Binärcode.";
     }
   } else if (/^(?:deaktiviere|beende) omega (?:modus|mode)\.?$/i.test(command)) {
     setOmegaProtocol(false);
@@ -856,6 +862,27 @@ preferencesForm.addEventListener("submit", (event) => {
   assistantStatus.textContent = "Sprach- und Tonpräferenzen wurden gespeichert.";
 });
 
+omegaCodeForm.addEventListener("submit", (event) => {
+  if (event.submitter?.value === "cancel") return;
+  event.preventDefault();
+  const submittedCode = omegaCodeInput.value.replace(/\s/g, "");
+  if (submittedCode !== omegaPasscode) {
+    omegaCodeError.textContent = "Code ungültig. Zugang verweigert.";
+    omegaCodeInput.select();
+    return;
+  }
+  setOmegaProtocol(true);
+  omegaCodeDialog.close();
+  assistantStatus.textContent = "Omega Modus aktiv. Volle Jarvis-Funktionalität ist verfügbar.";
+  addMessage("Omega Freigabe bestätigt. Volle Jarvis-Funktionalität ist verfügbar.");
+});
+
+omegaCodeInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  omegaCodeForm.requestSubmit(omegaCodeForm.querySelector('button[value="confirm"]'));
+});
+
 refreshWebsitesButton.addEventListener("click", loadWebsiteStatus);
 openJarvisWebsiteButton.addEventListener("click", () => {
   if (!omegaProtocol) return;
@@ -884,8 +911,4 @@ window.addEventListener("beforeunload", stopWakeListener);
 
 if (ghostProtocol) {
   setGhostProtocol(true);
-}
-
-if (ghostProtocol && omegaProtocol) {
-  setOmegaProtocol(true);
 }
