@@ -35,6 +35,7 @@ let lastClapTime = 0;
 let interfaceMode = "voice";
 let preferences = JSON.parse(localStorage.getItem("jarvis-preferences") || "{}");
 let ghostProtocol = sessionStorage.getItem("jarvis-ghost-protocol") === "true";
+let omegaProtocol = sessionStorage.getItem("jarvis-omega-protocol") === "true";
 
 function choose(options) {
   return options[Math.floor(Math.random() * options.length)];
@@ -83,11 +84,23 @@ function setGhostProtocol(enabled) {
   ghostProtocol = enabled;
   sessionStorage.setItem("jarvis-ghost-protocol", String(enabled));
   document.body.classList.toggle("ghost-protocol", enabled);
+  if (!enabled) setOmegaProtocol(false);
   speechSynthesis.cancel();
   stopWakeListener();
   setInterfaceMode("text");
   wakeScreen.classList.toggle("awake", enabled);
   promptInput.focus();
+}
+
+function setOmegaProtocol(enabled) {
+  omegaProtocol = enabled;
+  sessionStorage.setItem("jarvis-omega-protocol", String(enabled));
+  document.body.classList.toggle("omega-protocol", enabled);
+  if (enabled) {
+    stopWakeListener();
+    setInterfaceMode("text");
+    wakeScreen.classList.add("awake");
+  }
 }
 
 function isGhostProtocolCommand(command) {
@@ -476,7 +489,17 @@ async function respond(input) {
   } else if (/^(?:deaktiviere|beende) ghost protocol\.?$/i.test(command)) {
     setGhostProtocol(false);
     response = "Ghost Protocol beendet. Textmodus bleibt aktiv; Sprachmodus kann wieder gewählt werden.";
-  } else if (ghostProtocol && !isGhostProtocolCommand(command)) {
+  } else if (/^(?:aktiviere|aktivire) omega (?:modus|mode)\.?$/i.test(command)) {
+    if (!ghostProtocol) {
+      response = "Omega Modus kann nur innerhalb von Ghost Protocol aktiviert werden.";
+    } else {
+      setOmegaProtocol(true);
+      response = "Omega Modus aktiv. Volle Jarvis-Funktionalität ist verfügbar.";
+    }
+  } else if (/^(?:deaktiviere|beende) omega (?:modus|mode)\.?$/i.test(command)) {
+    setOmegaProtocol(false);
+    response = "Omega Modus beendet. Ghost Protocol bleibt aktiv.";
+  } else if (ghostProtocol && !omegaProtocol && !isGhostProtocolCommand(command)) {
     response = "Ghost Protocol beschränkt Befehle auf Dateien und Webseiten.";
   } else if (/^(hallo|hi|guten)/.test(normalized)) {
     response = choose([
@@ -804,4 +827,8 @@ window.addEventListener("beforeunload", stopWakeListener);
 
 if (ghostProtocol) {
   setGhostProtocol(true);
+}
+
+if (ghostProtocol && omegaProtocol) {
+  setOmegaProtocol(true);
 }
