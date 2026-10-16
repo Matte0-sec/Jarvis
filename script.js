@@ -840,13 +840,10 @@ preferencesForm.addEventListener("submit", (event) => {
 });
 
 refreshWebsitesButton.addEventListener("click", loadWebsiteStatus);
-openJarvisWebsiteButton.addEventListener("click", async () => {
+openJarvisWebsiteButton.addEventListener("click", () => {
+  if (!omegaProtocol) return;
   const websiteUrl = openJarvisWebsiteButton.dataset.url || "https://matte0-sec.github.io/Jarvis/";
-  try {
-    await runDesktopAction("website", websiteUrl);
-  } catch {
-    window.open(websiteUrl, "_blank", "noopener");
-  }
+  window.open(websiteUrl, "_blank", "noopener");
 });
 
 updateClock();
