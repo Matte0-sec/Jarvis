@@ -51,7 +51,7 @@ let interfaceMode = "voice";
 let preferences = JSON.parse(localStorage.getItem("jarvis-preferences") || "{}");
 let ghostProtocol = sessionStorage.getItem("jarvis-ghost-protocol") === "true";
 let omegaProtocol = false;
-const omegaPasscode = "1100111111011110";
+const omegaPasscode = "01101";
 
 function choose(options) {
   return options[Math.floor(Math.random() * options.length)];
