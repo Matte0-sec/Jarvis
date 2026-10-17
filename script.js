@@ -375,7 +375,10 @@ async function askWritingAssistant(input, type) {
   return result.content?.trim() || "Der Schreibassistent hat keinen Text geliefert.";
 }
 
-async function askMathAssistant(input) {
+async function askMathAssistant(input, showWorking) {
+  const responseFormat = showWorking
+    ? "Zeige die Abschnitte Gegeben, Gesucht, Rechnung, Antwort und eine kurze Probe. Schreibe Umrechnungen mit Einheiten aus und verwende klare Gleichungen."
+    : "Gib nur die kurze Antwort mit Ergebnis und Einheit aus. Zeige keinen Rechenweg, keine Zwischenschritte und keine Probe.";
   const response = await fetch(`${desktopUrl}/ai/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -383,7 +386,7 @@ async function askMathAssistant(input) {
       messages: [
         {
           role: "system",
-          content: "Du bist der Mathematikmodus von Jarvis Omega. Löse deutsche Mathe-Textaufgaben nachvollziehbar und rechne sorgfältig. Antworte immer mit den Abschnitten Gegeben, Gesucht, Rechnung und Antwort. Schreibe jede Umrechnung mit Einheit aus, verwende klare Gleichungen und prüfe das Ergebnis kurz. Wenn Angaben fehlen oder mehrdeutig sind, benenne genau die fehlende Annahme statt sie zu erfinden. Gib keine reine Endzahl ohne Rechenweg aus.",
+          content: `Du bist der Mathematikmodus von Jarvis Omega. Löse deutsche Mathe-Textaufgaben sorgfältig. ${responseFormat} Wenn Angaben fehlen oder mehrdeutig sind, benenne genau die fehlende Annahme statt sie zu erfinden.`,
         },
         { role: "user", content: input },
       ],
@@ -592,9 +595,10 @@ async function respond(input) {
     }
   } else if (omegaProtocol && getMathRequest(command)) {
     const mathRequest = getMathRequest(command);
+    const showWorking = /\b(mit|zeige|zeig)\s+(?:dem\s+)?rechenweg\b/i.test(mathRequest);
     assistantStatus.textContent = "Omega Mathematikmodus löst die Textaufgabe ...";
     try {
-      response = await askMathAssistant(mathRequest);
+      response = await askMathAssistant(mathRequest, showWorking);
     } catch (error) {
       response = error.message || "Der Mathematikmodus ist nicht bereit.";
     }
