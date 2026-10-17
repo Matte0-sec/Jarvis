@@ -569,7 +569,7 @@ async function respond(input) {
       omegaCodeError.textContent = "";
       omegaCodeInput.value = "";
       omegaCodeDialog.showModal();
-      response = "Omega Freigabe wartet auf den Binärcode.";
+      response = "Omega Freigabe wartet auf den Zugangscode.";
     }
   } else if (/^(?:deaktiviere|beende) omega (?:modus|mode)\.?$/i.test(command)) {
     setOmegaProtocol(false);
