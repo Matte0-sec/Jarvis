@@ -375,6 +375,25 @@ async function askWritingAssistant(input, type) {
   return result.content?.trim() || "Der Schreibassistent hat keinen Text geliefert.";
 }
 
+async function askMathAssistant(input) {
+  const response = await fetch(`${desktopUrl}/ai/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: [
+        {
+          role: "system",
+          content: "Du bist der Mathematikmodus von Jarvis Omega. Löse deutsche Mathe-Textaufgaben nachvollziehbar und rechne sorgfältig. Antworte immer mit den Abschnitten Gegeben, Gesucht, Rechnung und Antwort. Schreibe jede Umrechnung mit Einheit aus, verwende klare Gleichungen und prüfe das Ergebnis kurz. Wenn Angaben fehlen oder mehrdeutig sind, benenne genau die fehlende Annahme statt sie zu erfinden. Gib keine reine Endzahl ohne Rechenweg aus.",
+        },
+        { role: "user", content: input },
+      ],
+    }),
+  });
+  if (!response.ok) throw new Error("Der Mathematikmodus antwortet nicht.");
+  const result = await response.json();
+  return result.content?.trim() || "Der Mathematikmodus hat keine Lösung geliefert.";
+}
+
 async function runDesktopAction(action, target) {
   const response = await fetch(`${desktopUrl}/desktop/action`, {
     method: "POST",
@@ -471,6 +490,11 @@ function getWritingType(command) {
   return "essay";
 }
 
+function getMathRequest(command) {
+  const match = command.match(/^(?:mathemodus|mathe|textaufgabe|rechne)(?:\s*:\s*|\s+)(.+)$/i);
+  return match?.[1].trim() || null;
+}
+
 function getPlaceQuestion(command) {
   const patterns = [
     /^ist\s+(.+?)\s+(?:schön|gut|interessant|lebenswert)\??$/i,
@@ -565,6 +589,14 @@ async function respond(input) {
       response = await askQwenCoder(codeRequest);
     } catch (error) {
       response = error.message || "Qwen Coder ist nicht bereit.";
+    }
+  } else if (omegaProtocol && getMathRequest(command)) {
+    const mathRequest = getMathRequest(command);
+    assistantStatus.textContent = "Omega Mathematikmodus löst die Textaufgabe ...";
+    try {
+      response = await askMathAssistant(mathRequest);
+    } catch (error) {
+      response = error.message || "Der Mathematikmodus ist nicht bereit.";
     }
   } else if (getWritingRequest(command)) {
     const writingRequest = getWritingRequest(command);
