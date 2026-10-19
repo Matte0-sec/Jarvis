@@ -52,6 +52,23 @@ let preferences = JSON.parse(localStorage.getItem("jarvis-preferences") || "{}")
 let ghostProtocol = sessionStorage.getItem("jarvis-ghost-protocol") === "true";
 let omegaProtocol = false;
 const omegaPasscode = "1100";
+let conversationHistory;
+
+try {
+  const savedConversation = JSON.parse(sessionStorage.getItem("jarvis-conversation") || "[]");
+  conversationHistory = Array.isArray(savedConversation)
+    ? savedConversation.filter((message) => (
+      ["user", "assistant"].includes(message?.role) && typeof message.content === "string"
+    )).slice(-12)
+    : [];
+} catch {
+  conversationHistory = [];
+}
+
+function rememberConversation(role, content) {
+  conversationHistory = [...conversationHistory, { role, content }].slice(-12);
+  sessionStorage.setItem("jarvis-conversation", JSON.stringify(conversationHistory));
+}
 
 function choose(options) {
   return options[Math.floor(Math.random() * options.length)];
@@ -315,7 +332,7 @@ function speak(text) {
   speechSynthesis.speak(utterance);
 }
 
-async function askGroq(input) {
+async function askGroq(input, remember = true) {
   const toneInstructions = {
     warm: "Sei warm, aufmerksam und natürlich. Nutze gelegentlich leichten trockenen Humor.",
     humorous: "Sei freundlich und spürbar trocken-humorig, aber bleibe bei Fakten und werde nie beleidigend.",
@@ -330,6 +347,7 @@ async function askGroq(input) {
           role: "system",
           content: `Du bist JARVIS, ein aufmerksamer persönlicher Assistent mit eigener Stimme. Antworte auf natürlichem Deutsch, klar und eher kurz. ${toneInstructions[preferences.tone || "warm"]} Bei ernsten Themen, Fehlern oder Sicherheitsfragen bleibst du stets sachlich. Variiere Begrüßungen und Satzanfänge. Bleibe bei Fakten ehrlich: Erfinde keine ausgeführten Aktionen, Quellen oder technischen Details.`,
         },
+        ...conversationHistory,
         { role: "user", content: input },
       ],
     }),
@@ -337,7 +355,12 @@ async function askGroq(input) {
 
   if (!response.ok) throw new Error("Groq antwortet nicht.");
   const result = await response.json();
-  return result.content?.trim() || "Dazu habe ich keine Antwort erhalten.";
+  const answer = result.content?.trim() || "Dazu habe ich keine Antwort erhalten.";
+  if (remember) {
+    rememberConversation("user", input);
+    rememberConversation("assistant", answer);
+  }
+  return answer;
 }
 
 async function askQwenCoder(input) {
@@ -472,7 +495,7 @@ async function analyzeCameraImage(image) {
 
 function getNewsTopic(command) {
   if (/\b(elon musk|musk)\b/.test(command)) return "elon-musk";
-  if (/\b(news|neuigkeiten|nachrichten|passiert|weltgeschehen)\b/.test(command)) return "world";
+  if (/\b(news|neuigkeiten|nachrichten|weltgeschehen)\b/.test(command)) return "world";
   return null;
 }
 
@@ -687,7 +710,7 @@ async function respond(input) {
     try {
       const place = await getPlaceContext(placeQuery);
       const context = `Beantworte die Frage "${command}" anhand dieser verifizierten Ortsdaten. Antworte auf Deutsch in zwei bis vier Sätzen. Erkläre bei Wertungen wie "schön" ausgewogen, dass es subjektiv ist. Erfinde keine Sehenswürdigkeiten oder Fakten.\n\nOrt: ${place.displayName}\nKoordinaten: ${place.latitude}, ${place.longitude}\nBeschreibung: ${place.summary || "Keine enzyklopädische Kurzbeschreibung verfügbar."}`;
-      response = await askGroq(context);
+      response = await askGroq(context, false);
     } catch {
       response = `Ich konnte ${placeQuery} gerade nicht zuverlässig auf der Karte finden.`;
     }
@@ -700,7 +723,7 @@ async function respond(input) {
       response = await askGroq(`Beantworte diese Frage anhand ausschließlich der aktuellen Schlagzeilen unten: "${command}". Erkläre in zwei bis drei kurzen deutschen Sätzen, was passiert ist und warum es relevant sein könnte. Erfinde keine Details. Nenne am Ende die Quellen kurz.
 
     ${news.label}:
-    ${headlines}`);
+    ${headlines}`, false);
     } catch {
       response = "Die Live-News sind gerade nicht erreichbar. Prüfen Sie bitte Ihre Internetverbindung und den lokalen Desktop-Dienst.";
     }
