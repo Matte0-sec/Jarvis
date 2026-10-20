@@ -215,18 +215,28 @@ function updateVoice() {
   };
   const selectedGender = preferences.voiceGender || "female";
   const germanVoices = voices.filter((voice) => voice.lang.toLowerCase().startsWith("de"));
+  const matchingGermanVoice = germanVoices.find((voice) => genderPatterns[selectedGender].test(voice.name));
+  const matchingVoice = voices.find((voice) => genderPatterns[selectedGender].test(voice.name));
   germanVoice = voices.find((voice) => voice.voiceURI === preferences.voiceURI)
-    || germanVoices.find((voice) => genderPatterns[selectedGender].test(voice.name))
-    || germanVoices[0];
+    || matchingGermanVoice
+    || matchingVoice
+    || germanVoices[0]
+    || voices[0];
+  const selectableVoices = [...germanVoices];
+  if (germanVoice && !selectableVoices.some((voice) => voice.voiceURI === germanVoice.voiceURI)) {
+    selectableVoices.push(germanVoice);
+  }
   voiceSelect.replaceChildren();
-  germanVoices.forEach((voice) => {
+  selectableVoices.forEach((voice) => {
     const option = document.createElement("option");
     option.value = voice.voiceURI;
     option.textContent = `${voice.name} (${voice.lang})`;
     option.selected = voice.voiceURI === germanVoice?.voiceURI;
     voiceSelect.append(option);
   });
-  voiceState.textContent = germanVoice ? "Deutsch bereit" : "deutsches Sprachpaket fehlt";
+  voiceState.textContent = germanVoice
+    ? germanVoice.lang.toLowerCase().startsWith("de") ? "Deutsch bereit" : "Stimmprofil bereit (Deutsch fehlt)"
+    : "keine Stimme verfügbar";
 }
 
 function syncPreferenceControls() {
