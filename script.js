@@ -16,6 +16,7 @@ const orbStatus = document.querySelector("#orbStatus");
 const preferencesButton = document.querySelector("#preferencesButton");
 const preferencesDialog = document.querySelector("#preferencesDialog");
 const preferencesForm = document.querySelector("#preferencesForm");
+const voiceGenderSelect = document.querySelector("#voiceGenderSelect");
 const voiceSelect = document.querySelector("#voiceSelect");
 const speechRate = document.querySelector("#speechRate");
 const speechRateValue = document.querySelector("#speechRateValue");
@@ -208,12 +209,17 @@ async function startWakeListener() {
 
 function updateVoice() {
   const voices = speechSynthesis.getVoices();
-  const preferredNames = ["Microsoft Katja", "Microsoft Conrad", "Google Deutsch", "German"];
+  const genderPatterns = {
+    female: /\b(katja|heda|helena|anna|petra|susan|zira|female)\b/i,
+    male: /\b(conrad|stefan|mark|david|michael|george|male)\b/i,
+  };
+  const selectedGender = preferences.voiceGender || "female";
+  const germanVoices = voices.filter((voice) => voice.lang.toLowerCase().startsWith("de"));
   germanVoice = voices.find((voice) => voice.voiceURI === preferences.voiceURI)
-    || voices.find((voice) => preferredNames.some((name) => voice.name.includes(name)))
-    || voices.find((voice) => voice.lang.toLowerCase().startsWith("de"));
+    || germanVoices.find((voice) => genderPatterns[selectedGender].test(voice.name))
+    || germanVoices[0];
   voiceSelect.replaceChildren();
-  voices.filter((voice) => voice.lang.toLowerCase().startsWith("de")).forEach((voice) => {
+  germanVoices.forEach((voice) => {
     const option = document.createElement("option");
     option.value = voice.voiceURI;
     option.textContent = `${voice.name} (${voice.lang})`;
@@ -227,6 +233,7 @@ function syncPreferenceControls() {
   speechRate.value = String(preferences.rate || 0.9);
   speechRateValue.value = speechRate.value;
   toneSelect.value = preferences.tone || "warm";
+  voiceGenderSelect.value = preferences.voiceGender || "female";
   if (preferences.voiceURI && voiceSelect.querySelector(`option[value="${CSS.escape(preferences.voiceURI)}"]`)) {
     voiceSelect.value = preferences.voiceURI;
   }
@@ -901,6 +908,12 @@ speechRate.addEventListener("input", () => {
   speechRateValue.value = speechRate.value;
 });
 
+voiceGenderSelect.addEventListener("change", () => {
+  preferences = { ...preferences, voiceGender: voiceGenderSelect.value };
+  delete preferences.voiceURI;
+  updateVoice();
+});
+
 testVoiceButton.addEventListener("click", () => {
   const selectedVoice = speechSynthesis.getVoices().find((voice) => voice.voiceURI === voiceSelect.value);
   if (!selectedVoice) return;
@@ -913,6 +926,7 @@ preferencesForm.addEventListener("submit", (event) => {
   if (event.submitter?.value !== "save") return;
   preferences = {
     voiceURI: voiceSelect.value,
+    voiceGender: voiceGenderSelect.value,
     rate: Number(speechRate.value),
     tone: toneSelect.value,
   };
