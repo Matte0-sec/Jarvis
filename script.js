@@ -568,10 +568,11 @@ function getWebsiteTarget(command) {
     youtube: "https://www.youtube.com",
     google: "https://www.google.com",
     github: "https://github.com",
+    naturwissenschaften: "https://matte0-sec.github.io/Naturwissenschaften/",
     spotify: "https://open.spotify.com",
     netflix: "https://www.netflix.com",
   };
-  const knownSite = Object.keys(sites).find((site) => command.includes(site));
+  const knownSite = Object.keys(sites).find((site) => command.toLocaleLowerCase("de-DE").includes(site));
   if (knownSite) return sites[knownSite];
 
   const target = command
