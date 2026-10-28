@@ -569,6 +569,7 @@ function getWebsiteTarget(command) {
     google: "https://www.google.com",
     github: "https://github.com",
     naturwissenschaften: "https://matte0-sec.github.io/Naturwissenschaften/",
+    cyberworld: "https://matte0-sec.github.io/Cybeworld/",
     spotify: "https://open.spotify.com",
     netflix: "https://www.netflix.com",
   };
